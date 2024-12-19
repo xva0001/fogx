@@ -29,8 +29,10 @@
 </template>
 
 <script setup>
+
 definePageMeta({
-    title : "testing App"
+    name: "testing App - First page"
+    
 })
 
 
