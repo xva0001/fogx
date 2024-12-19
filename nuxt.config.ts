@@ -3,5 +3,8 @@ export default defineNuxtConfig(
   {
     modules: ["@nuxtjs/tailwindcss"],
     pages : true,
+    nitro:{
+      preset : "cloudflare-pages"
+    }
   }
 )
