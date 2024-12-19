@@ -15,6 +15,9 @@
   
   <script setup>
  
+ definePageMeta({
+    title : "testing App - Second page"
+})
   //const router = useRouter();
   
   // Function to navigate to the home page

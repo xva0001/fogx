@@ -1,3 +1,5 @@
+
+
 <template>
     <div class="flex flex-col items-center justify-center min-h-screen dark:bg-gray-700 bg-gray-100 p-4">
         <h1 class="text-3xl font-bold text-gray-800 dark:text-white mb-4">Nuxt 3 Testing Page</h1>
@@ -27,6 +29,10 @@
 </template>
 
 <script setup>
+definePageMeta({
+    title : "testing App"
+})
+
 
 const testInput = ref("");
 const testResult = ref("");
