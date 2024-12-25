@@ -19,6 +19,9 @@
             <button @click="goToSecondPage" class="w-full bg-red-500 text-white py-2 my-2 rounded hover:bg-blue-600">
                 second page
             </button>
+            <button @click="goToLoginPage" class="w-full bg-violet-600 text-white py-2 my-2 rounded hover:bg-violet-400">
+                Login page
+            </button>
         </div>
         <div v-if="testResult"
             class="mt-6 p-4 border border-green-300 bg-green-100 rounded w-full max-w-md text-green-800">
@@ -31,8 +34,12 @@
 <script setup>
 
 definePageMeta({
-    name: "testing App - First page"
-    
+    name: "testing App - First page",
+    title:"xva test"
+})
+useHead({
+    title:"xva testing - fyp project",
+    meta:[{name:"fyp", content:"testing"}]
 })
 
 
@@ -56,4 +63,12 @@ const goToSecondPage = ()=>{
         path:"/Home"
     })
 }
+
+
+const goToLoginPage = () =>{
+    return navigateTo({
+        path:"/Login"
+    })
+}
+
 </script>

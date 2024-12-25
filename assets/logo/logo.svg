@@ -1,0 +1,14 @@
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="shieldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#2C3E50;stop-opacity:1"/>
+      <stop offset="100%" style="stop-color:#4A90E2;stop-opacity:1"/>
+    </linearGradient>
+  </defs>
+  <path d="M100 30 L150 60 V110 C150 140 130 170 100 180 C70 170 50 140 50 110 V60 L100 30 Z" fill="url(#shieldGradient)"/>
+  <path d="M85 90 h30 a5 5 0 0 1 5 5 v10 a5 5 0 0 1 -5 5 h-30 a5 5 0 0 1 -5 -5 v-10 a5 5 0 0 1 5 -5 z" fill="#FFFFFF"/>
+  <circle cx="90" cy="95" r="3" fill="#2C3E50"/>
+  <circle cx="100" cy="95" r="3" fill="#2C3E50"/>
+  <circle cx="110" cy="95" r="3" fill="#2C3E50"/>
+  <text x="50%" y="195" font-family="Arial, sans-serif" font-size="24" fill="currentColor" text-anchor="middle" style="font-weight: bold;">MsgFog</text>
+</svg>
