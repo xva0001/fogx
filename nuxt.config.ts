@@ -9,7 +9,9 @@ export default defineNuxtConfig(
     },
     modules: ["@nuxtjs/tailwindcss", "@nuxt/icon", "@nuxt/image"],
     pages : true,
-
+    icon:{
+      serverBundle:"remote"
+    },
     nitro:{
       preset : "cloudflare-pages"
     },
