@@ -25,10 +25,7 @@
 
             <!-- Theme Toggle -->
             <div class="flex justify-end mb-4">
-                <button @click="toggleDarkMode" class="px-3 py-1 text-sm rounded-lg border"
-                    :class="isDark ? 'bg-yellow-400 text-gray-900' : 'bg-gray-200 text-gray-800'">
-                    {{ isDark ? '☀️ Light Mode' : '🌙 Dark Mode' }}
-                </button>
+                <DarkModeBtn />
             </div>
 
             <!-- Form Fields -->
@@ -51,6 +48,8 @@
                         required />
                 </div>
 
+                <NuxtTurnstile ref="turnstile" />
+
                 <!-- Login Button -->
                 <button type="submit" class="w-full py-2 rounded-lg text-white focus:outline-none"
                     :class="isDark ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'">
@@ -72,11 +71,14 @@
 <script setup>
 import logo from "~/assets/logo/logo.svg"
 import dark_logo from "~/assets/logo/logo_dark.svg"
+import DarkModeBtn from "~/components/DarkModeBtn.vue";
+
 useHead({
     title:"xva - fyp - Login Page ",
     meta:[{name:"MsgFog login Page"}]
 })
 
+const turnstile = ref()
 
 const username = ref('');
 const password = ref('');

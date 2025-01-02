@@ -7,14 +7,32 @@ export default defineNuxtConfig(
         viewport:"width=device-width, initial-scale=1"
       },
     },
-    modules: ["@nuxtjs/tailwindcss", "@nuxt/icon", "@nuxt/image"],
+    modules: [
+      "@nuxtjs/tailwindcss",
+      "@nuxt/icon",
+      "@nuxt/image",
+      "@nuxtjs/turnstile",
+      "@nuxt/scripts"
+    ],
     pages : true,
+
+    turnstile:{
+      siteKey:process.env.NUXT_PUBLIC_TURNSTILE_SITE_KEY,
+      addValidateEndpoint:true
+      
+    },
     icon:{
       serverBundle:"remote"
     },
     nitro:{
       preset : "cloudflare-pages"
     },
+    runtimeConfig:{
+      turnstile:{
+        secretKey:process.env.NUXT_TURNSTILE_SECRET_KEY
+      }
+    }
+    ,
     compatibilityDate: "2024-12-25"
   }
 )
