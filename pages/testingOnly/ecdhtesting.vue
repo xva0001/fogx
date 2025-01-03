@@ -50,10 +50,10 @@
   </template>
   
   <script setup lang="ts">
+  
   import { ref } from 'vue';
   import EC from 'elliptic';
   import forge from 'node-forge';
-
   import { sha3_384 } from 'js-sha3';
   
   useHead({
@@ -90,11 +90,10 @@
         forge.pkcs5.pbkdf2(
             sha3_384(shared.toString(16)),shared.toString(16),5000,128));
     //avoid rainbow attack
-    
-    console.log(sharedKey.value.length)
   }
+ 
   
-  let iv = ref(forge.random.getBytesSync(16))
+  let iv = ref()
 
   function encryptMessage() {
     iv.value = forge.random.getBytesSync(16)
