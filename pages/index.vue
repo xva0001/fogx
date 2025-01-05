@@ -1,18 +1,37 @@
 <template>
-  <div>
+  <div class="w-full" :class="isDark ? 'text-white' : 'text-black'">
     <header class="p-4 flex justify-between items-center"
       :class="isDark ? 'bg-gray-800 text-white' : 'bg-gray-200 text-black'">
+      <!-- Logo -->
       <NuxtImg :src="isDark ? dark_logo : logo" alt="Logo" class="w-20 h-20 mb-2"
-        :class="isDark ? 'text-white' : 'text-black'">
-      </NuxtImg>
-      <ul class="flex gap-4">
-        <li v-for="(item, index) in navItems" :key="index">
-          <nuxt-link :to="item.link" class="hover:text-gray-400">{{ item.text }}</nuxt-link>
+        :class="isDark ? 'text-white' : 'text-black'" />
+
+      <!-- Hamburger Icon (visible on small screens) -->
+      <button @click="isMenuOpen = !isMenuOpen" class="block md:hidden text-xl focus:outline-none">
+        <Icon name="bi:list" v-if="!isMenuOpen" />
+        <Icon name="bi:chevron-up" v-else />
+      </button>
+
+      <!-- Navigation Items -->
+      <ul :class="[
+        'flex gap-4 md:flex md:gap-4 items-center',
+        isMenuOpen ? 'block mt-12 flex-col ' : 'hidden',
+        'absolute md:static top-16 left-0 w-full bg-gray-200 md:bg-transparent md:top-auto md:w-auto',
+        isDark ? 'bg-gray-800 text-white' : 'bg-gray-200 text-black',
+      ]">
+        <li v-for="(item, index) in navItems" :key="index" class="text-center md:text-left">
+          <nuxt-link :to="item.link" class="block py-2 md:py-0 hover:text-gray-400">
+            {{ item.text }}
+          </nuxt-link>
         </li>
-        <li><nuxt-link @click="GoToLogin"
-            class=" btn-accent btn-active text-white px-4 py-2 rounded hover:bg-blue-600">Login</nuxt-link></li>
         <li>
-          <DarkModeBtn class="p-0" />
+          <nuxt-link @click="GoToLogin"
+            class="btn-accent btn-active text-white px-4 py-2 rounded hover:bg-blue-600 block md:inline">
+            Login
+          </nuxt-link>
+        </li>
+        <li>
+          <DarkModeBtn class="p-0 block md:inline" />
         </li>
       </ul>
     </header>
@@ -29,7 +48,7 @@
             Join Now
 
           </nuxt-link>
-          <nuxt-link  @click="GoToLogin" class="btn btn-active btn-accent  text-white">
+          <nuxt-link @click="GoToLogin" class="btn btn-active btn-accent  text-white">
             Login
           </nuxt-link>
         </div>
@@ -37,17 +56,19 @@
     </section>
 
     <section id="features" class="py-12" :class="isDark ? ' text-white ' : ' text-black'">
-  <h2 class="text-3xl font-bold text-center mb-8" :class="isDark ? 'text-gray-200' : 'text-white'">
-    Why Choose MsgFog?
-  </h2>
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto px-3"> 
-    <div v-for="(feature, index) in features" :key="index" class="flex flex-col items-center justify-center p-4 shadow-md rounded-md text-center" :class="isDark ? 'bg-zinc-600' : 'bg-white'">
-      <Icon :name="feature.icon" class="w-20 h-20" />
-      <h3 class="text-xl font-semibold mb-2">{{ feature.title }}</h3>
-      <p>{{ feature.description }}</p>
-    </div>
-  </div>
-</section>
+      <h2 class="text-3xl font-bold text-center mb-8" :class="isDark ? 'text-gray-200' : 'text-white'">
+        Why Choose MsgFog?
+      </h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto px-3">
+        <div v-for="(feature, index) in features" :key="index"
+          class="flex flex-col items-center justify-center p-4 shadow-md rounded-md text-center"
+          :class="isDark ? 'bg-zinc-600' : 'bg-white'">
+          <Icon :name="feature.icon" class="w-20 h-20" />
+          <h3 class="text-xl font-semibold mb-2">{{ feature.title }}</h3>
+          <p>{{ feature.description }}</p>
+        </div>
+      </div>
+    </section>
 
 
     <section id="about" class="py-12 text-center"
@@ -87,7 +108,7 @@ import DarkModeBtn from "~/components/DarkModeBtn.vue";
 const DarkMode = useThemeStore();
 const isDark = ref(DarkMode.isDark)
 
-
+const isMenuOpen = ref(false)
 
 const navItems = ref([
   { text: 'Features', link: '#features' },
