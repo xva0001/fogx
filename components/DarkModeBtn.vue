@@ -1,5 +1,5 @@
 <template>
-    <button @click="toggleDarkMode" class="p-2 rounded-full  dark:"
+    <button @click="toggleDarkMode" class="p-2 rounded-full theme-controller" 
                         :class="isDark ? 'hover:bg-gray-800' : 'hover:bg-gray-200'">
                         <template v-if="isDark" class="w-5 h-5">
                             <Icon name="bi:brightness-high" />
