@@ -9,7 +9,7 @@
 </template>
 
 <script setup lang="ts">
-
+// reference for https://github.com/simontabor/2fa/blob/master/lib/2FA.js
 import forge from "node-forge"
 import QRCode from 'qrcode';
 import base32 from "hi-base32"
@@ -89,15 +89,18 @@ const genGoogleQr = async  (name: string, acc: string, key: string, opt:QRCode.Q
 
 }
 
-const key = ref(generateKey())
+const key = ref("")
 
-const totp = ref(generateTOTP(key.value, Math.floor(Date.now() / 1000 / 30)))
+const totp = ref("")
 
-const check = ref(verifyHOTP(key.value, totp.value, Math.floor(Date.now() / 1000 / 30)))
+const check = ref()
 
 const imgdata = ref<string>("")
 
 onMounted(() => {
+    key.value = generateKey()
+    totp.value = generateTOTP(key.value, Math.floor(Date.now() / 1000 / 30))
+    check.value =verifyHOTP(key.value, totp.value, Math.floor(Date.now() / 1000 / 30))
     setInterval(() => {
         totp.value = generateTOTP(key.value, Math.floor(Date.now() / 1000 / 30))
         check.value = verifyHOTP(key.value, totp.value, Math.floor(Date.now() / 1000 / 30))
