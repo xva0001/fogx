@@ -13,12 +13,14 @@ export default defineNuxtConfig(
       "@nuxt/icon",
       "@nuxt/image",
       "@nuxtjs/turnstile",
-      "@nuxt/scripts"
+      "@nuxt/scripts",
+      "nuxt-mongoose",
+      "@nuxt/content"
     ],
     pages : true,
 
     turnstile:{
-      siteKey:process.env.NUXT_PUBLIC_TURNSTILE_SITE_KEY,
+      siteKey:  process.env.NUXT_PUBLIC_TURNSTILE_SITE_KEY,
       addValidateEndpoint:true
       
     },
@@ -30,7 +32,7 @@ export default defineNuxtConfig(
     },
     runtimeConfig:{
       turnstile:{
-        secretKey:process.env.NUXT_TURNSTILE_SECRET_KEY
+        secretKey: process.env.NUXT_TURNSTILE_SECRET_KEY
       }
     }
     ,

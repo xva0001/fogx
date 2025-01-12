@@ -85,9 +85,7 @@ const password = ref('');
 const DarkMode = useThemeStore();
 const isDark = ref(DarkMode.isDark)
 //for btn
-const toggleDarkMode = () => {
-    DarkMode.toggleIsDark()
-}
+
 const goBack = () => {
     navigateTo({
         path: "/"
@@ -96,8 +94,10 @@ const goBack = () => {
 
 // 登入邏輯
 function handleLogin() {
-    if (username.value && password.value) {
-        console.log(`Logging in with:\nUsername: ${username.value}\nPassword: ${password.value}`);
+    if (username.value && password.value && (import.meta.dev  || turnstile.value.success)) {
+
+        console.log(
+            `Logging in with:\nUsername: ${username.value}\nPassword: ${password.value}`);
     } else {
         console.log('Please fill in both fields');
     }
