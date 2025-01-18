@@ -14,7 +14,6 @@ export default defineNuxtConfig(
       "@nuxt/image",
       "@nuxtjs/turnstile",
       "@nuxt/scripts",
-      "nuxt-mongoose",
       "@nuxt/content"
     ],
     pages : true,
