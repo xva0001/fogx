@@ -1,5 +1,5 @@
 <template>
-  <div class="w-full" :class="isDark ? 'text-white' : 'text-black'">
+  <div class="w-full " :class="isDark ? 'text-white' : 'text-black'">
     <header class="p-4 flex justify-between items-center"
       :class="isDark ? 'bg-gray-800 text-white' : 'bg-gray-200 text-black'">
       <!-- Logo -->
@@ -14,19 +14,19 @@
 
       <!-- Navigation Items -->
       <ul :class="[
-        'flex gap-4 md:flex md:gap-4 items-center',
+        'flex gap-4 md:flex  md:gap-4 items-center',
         isMenuOpen ? 'block mt-12 flex-col ' : 'hidden',
         'absolute md:static top-16 left-0 w-full bg-gray-200 md:bg-transparent md:top-auto md:w-auto',
         isDark ? 'bg-gray-800 text-white' : 'bg-gray-200 text-black',
       ]">
-        <li v-for="(item, index) in navItems" :key="index" class="text-center md:text-left">
+        <li v-for="(item, index) in navItems" :key="index" class="text-center xl:text-2xl md:text-left">
           <nuxt-link :to="item.link" class="block py-2 md:py-0 hover:text-gray-400">
             {{ item.text }}
           </nuxt-link>
         </li>
         <li>
           <nuxt-link @click="GoToLogin"
-            class="btn-accent btn-active text-white px-4 py-2 rounded hover:bg-blue-600 block md:inline">
+            class="btn btn-accent hover:cursor-pointer btn-active text-white px-4 py-2 rounded hover:bg-blue-600 xl:text-2xl block md:inline">
             Login
           </nuxt-link>
         </li>
@@ -44,7 +44,7 @@
           confidential and secure.
         </p>
         <div class="flex justify-center gap-4 mt-6">
-          <nuxt-link class="btn btn-neutral" :class="isDark ? '' : ' text-white'">
+          <nuxt-link @click="GoToRegister" class="btn btn-neutral" :class="isDark ? '' : ' text-white'">
             Join Now
 
           </nuxt-link>
@@ -55,8 +55,8 @@
       </div>
     </section>
 
-    <section id="features" class="py-12" :class="isDark ? ' text-white ' : ' text-black'">
-      <h2 class="text-3xl font-bold text-center mb-8" :class="isDark ? 'text-gray-200' : 'text-white'">
+    <section id="features" class="py-12" :class="isDark ? 'bg-black text-white ' : 'bg-white text-black'">
+      <h2 class="text-3xl font-bold text-center mb-8" :class="isDark ? 'text-gray-200' : 'text-blank'">
         Why Choose MsgFog?
       </h2>
       <div class="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto px-3">
@@ -144,6 +144,10 @@ const socialLinks = ref([
 const GoToLogin = () => {
   GotoLoginPage()
 }
+const GoToRegister = () =>{
+  GoToRegisterPage()
+}
+
 
 </script>
 
