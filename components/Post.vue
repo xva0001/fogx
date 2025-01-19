@@ -9,7 +9,7 @@
                     <div class="space-y-2 " :class="isDark ? 'text-gray-300' : 'text-gray-700'">
                         <p>Hi</p>
                         <p>We are Msgfog</p>
-                        <ImageBox class="pt-2" :images="images" />
+                        <ImageBox v-if="images" class="pt-2" :images="images" />
 
                     </div>
 
@@ -47,7 +47,7 @@ const props = defineProps({
     date: { type: [Date, String], default: new Date() },
     title: {type : String, required:true},
     content: {type : String, required:true},
-    images: { type: Array as PropType<string[]>, required: true },
+    images: { type: Array as PropType<string[]>, required: false },
     tags: { type: Array as PropType<string[]>, required: false },
     like : { type : Number , default : 0},
     comments : { type : Number , default : 0}
