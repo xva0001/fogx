@@ -44,4 +44,4 @@ const PostSchema = new Schema<IPost>({
 const Post = mongoose.model<IPost>('Post', PostSchema);
 const Comment = mongoose.model<Icomment>('Comment', CommentSchema);
 
-export { Post, Comment };
+export { Post, Comment,CommentSchema,PostSchema };

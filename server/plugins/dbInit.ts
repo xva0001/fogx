@@ -1,8 +1,10 @@
-import { mongodb_conn_fn } from "../utils/dbconnect"
+import { mongodb_post_conn_fn, mongodb_user_conn_fn } from "../utils/dbconnect"
 
 export default defineNitroPlugin((nitroApp) => {
     
-    mongodb_conn_fn()
+    mongodb_user_conn_fn()
+    mongodb_post_conn_fn()
+    
     
 })
   
