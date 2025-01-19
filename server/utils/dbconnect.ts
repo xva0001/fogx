@@ -15,6 +15,7 @@ export const mongodb_conn_fn = async (uri:string|undefined) => {
     catch (e) {
         console.log(e);
         console.log("Error")
+        throw e
     }
 }
 
@@ -22,11 +23,11 @@ export const mongodb_conn_fn = async (uri:string|undefined) => {
 export const mongodb_user_conn_fn = async () => {
     const uri = process.env.MONGODB_USER_DB;
     const conn = await mongodb_conn_fn(uri)
-    conn?.model("User",userSchema)
+    return conn //?.model("User",userSchema)
 }
 
 export const mongodb_post_conn_fn = async ()=>{
         const uri = process.env.MONGODB_POST_DB
         const conn = await mongodb_conn_fn(uri)
-        conn?.model("Post",PostSchema)
+        return conn //?.model("Post",PostSchema)
 }
