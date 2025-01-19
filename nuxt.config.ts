@@ -27,7 +27,7 @@ export default defineNuxtConfig(
       serverBundle:"remote"
     },
     nitro:{
-      preset : "cloudflare-pages"
+      preset : "vercel"
     },
     runtimeConfig:{
       turnstile:{
