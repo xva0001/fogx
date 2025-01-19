@@ -33,6 +33,9 @@ export default defineNuxtConfig(
     runtimeConfig:{
       turnstile:{
         secretKey: process.env.NUXT_TURNSTILE_SECRET_KEY
+      },
+      supabase:{
+        
       }
     }
     ,
