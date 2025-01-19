@@ -14,7 +14,8 @@ export default defineNuxtConfig(
       "@nuxt/image",
       "@nuxtjs/turnstile",
       "@nuxt/scripts",
-      "@nuxt/content"
+      "@nuxt/content",
+      "@nuxtjs/supabase"
     ],
     pages : true,
 
@@ -27,7 +28,7 @@ export default defineNuxtConfig(
       serverBundle:"remote"
     },
     nitro:{
-      preset:"vercel"
+      preset:"cloudflare-pages"
     },
     runtimeConfig:{
       turnstile:{
