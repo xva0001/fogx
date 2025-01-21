@@ -17,10 +17,11 @@ export default defineNuxtConfig(
       "@nuxt/content",
       "@nuxtjs/supabase"
     ],
+
     pages : true,
 
     turnstile:{
-      siteKey:  process.env.NUXT_PUBLIC_TURNSTILE_SITE_KEY,
+      siteKey:  import.meta.dev?"1x00000000000000000000AA":process.env.NUXT_PUBLIC_TURNSTILE_SITE_KEY,
       addValidateEndpoint:true
       
     },
@@ -28,11 +29,11 @@ export default defineNuxtConfig(
       serverBundle:"remote"
     },
     nitro:{
-      preset:"cloudflare-pages"
+      
     },
     runtimeConfig:{
       turnstile:{
-        secretKey: process.env.NUXT_TURNSTILE_SECRET_KEY
+        secretKey:import.meta.dev?"1x0000000000000000000000000000000AA": process.env.NUXT_TURNSTILE_SECRET_KEY
       },
       supabase:{
         
