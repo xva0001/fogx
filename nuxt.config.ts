@@ -15,7 +15,7 @@ export default defineNuxtConfig(
       "@nuxtjs/turnstile",
       "@nuxt/scripts",
       "@nuxt/content",
-      "@nuxtjs/supabase"
+      // "@nuxtjs/supabase"
     ],
 
     pages : true,
