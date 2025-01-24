@@ -9,7 +9,9 @@
 
 import AES from 'aes-js';
 import { ec } from 'elliptic';
-import secrets from 'secrets.js-grempe';
+
+import { Secrets } from './secrets_re';
+const secrets = new Secrets();
 
 onMounted(() => {
     // ECC 初始化
