@@ -9,8 +9,8 @@
 
 import AES from 'aes-js';
 import { ec } from 'elliptic';
+import { Secrets } from 'secretsjs_grempe_rewrite';
 
-import { Secrets } from './secrets_re';
 const secrets = new Secrets();
 
 onMounted(() => {
