@@ -126,7 +126,7 @@ onMounted(() => {
      * **測試主程式**
      */
     async function main() {
-        const message = "這是一段重要的訊息";
+        const message = "這是兩段重要的訊息";
 
         // 1. 對稱加密
         const symmetricKey = AES.utils.hex.toBytes('1234567890abcdef1234567890abcdef'); // 32 字節密鑰
@@ -155,7 +155,7 @@ onMounted(() => {
 
         // 3. 分割與還原
         const secretSharing = new ShamirSecretSharing();
-        const shares = secretSharing.split(encryptedSymmetric, 3, 2); // 分成 3 份，至少 2 份可還原
+        const shares = secretSharing.split(encryptedSymmetric, 4, 3);//x,y // 分成 x 份，至少需要 y 份即可還原
         console.log("分割後的訊息段:", shares);
 
         const restoredMessage = secretSharing.combine([shares[0], shares[1]]);
