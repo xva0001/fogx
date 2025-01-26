@@ -61,7 +61,7 @@ type UserConfig = Partial<{
 
 
 
-const settings = {
+export const settings = {
     bits: 8,
     radix: 16,
     minBits: 3,
@@ -215,10 +215,7 @@ export class Secrets {
     }
 
 
-    static splitNumStringToIntArray(
-        str: string,
-        padLength?: number
-    ): number[] {
+    static splitNumStringToIntArray(str: string, padLength?: number): number[] {
         const parts: number[] = [];
 
         // 如果有 padLength，先對字串進行填充
@@ -265,29 +262,38 @@ export class Secrets {
     // corresponding elements constituting points on the polynomial.
     //拉格朗日插值多項式
     static lagrange(at: number, x: number[], y: number[], config: Config): number {
-        let sum = 0; // 插值多項式的結果
+        let sum = 0; // 插值多项式的结果
         const len = x.length;
 
         for (let i = 0; i < len; i++) {
-            if (!y[i]) continue; // 跳過 y[i] 為 0 的情況
+            // 如果插值点刚好等于 x[i]，直接返回 y[i]
+            if (x[i] === at) {
+                return y[i];
+            }
 
-            let product = config.logs[y[i]]; // 初始化 product 為 log(y[i])
+            // 跳过无效的 y[i]
+            if (y[i] === 0 || !config.logs[y[i]]) continue;
 
+            let product = config.logs[y[i]]; // 初始化 product 为 log(y[i])
             for (let j = 0; j < len; j++) {
-                if (i === j) continue; // 跳過自己
-
-                if (at === x[j]) {
-                    product = -1; // 特殊情況，直接設為 -1
-                    break;
-                }
+                if (i === j) continue; // 跳过自己
 
                 const atXorXj = at ^ x[j];
                 const xiXorXj = x[i] ^ x[j];
+
+                // 处理特殊情况：分母或分子为 0
+                if (atXorXj === 0 || xiXorXj === 0) {
+                    product = -1;
+                    break;
+                }
+
                 product = (product + config.logs[atXorXj] - config.logs[xiXorXj] + config.maxShares) % config.maxShares;
             }
 
-            // 累積到 sum，檢查特殊情況
-            sum = product === -1 ? sum : sum ^ config.exps[product];
+            // 如果未发生特殊情况，累积结果
+            if (product !== -1) {
+                sum ^= config.exps[product];
+            }
         }
 
         return sum;
@@ -369,38 +375,59 @@ export class Secrets {
      * 初始化方法，構造對數表和指數表
      */
     private init(): void {
-        const { bits, size, maxShares } = this.config;
-        const { primitivePolynomials, minBits, maxBits } = settings;
+        const { bits, size } = this.config;
+        const { primitivePolynomials } = settings;
 
-        // 檢查 bits 的合法性
-        if (bits < minBits || bits > maxBits) {
-            throw new Error(`Bits must be between ${minBits} and ${maxBits}.`);
+        // 检查位宽合法性
+        if (bits < 3 || bits > 20) {
+            throw new Error(`Bits must be between 3 and 20.`);
         }
 
-        // 獲取對應位數的原始多項式
         const primitive = primitivePolynomials[bits];
         if (!primitive) {
             throw new Error(`No primitive polynomial found for bits=${bits}.`);
         }
 
-        const logs: number[] = [];
-        const exps: number[] = [];
-        let x = 1;
+        // 初始化 logs 和 exps
+        const logs: number[] = new Array(size).fill(-1); // 默认值为 -1
+        const exps: number[] = new Array(size);
 
-        // 構造對數和指數表
-        for (let i = 0; i < size; i++) {
-            exps[i] = x;
-            logs[x] = i;
-            x = x << 1; // 左移 1 位
+        let x = 1; // 初始值为 1
+        for (let i = 0; i < size - 1; i++) {
+            // 检查 x 是否重复或超出范围
+            if (logs[x] !== -1) {
+                throw new Error(`Duplicate x value: ${x} at step ${i}`);
+            }
+            if (x < 0 || x >= size) {
+                throw new Error(`Invalid x value: ${x} at step ${i}`);
+            }
+
+            exps[i] = x; // 填充指数表
+            logs[x] = i; // 填充对数表
+
+            // 更新 x，左移并归约
+            x = (x << 1)
             if (x >= size) {
-                x = x ^ primitive; // XOR
-                x = x & maxShares; // AND
+                x = x ^ primitive // Bitwise XOR assignment
+                x = x & config_re.maxShares // Bitwise AND assignment
             }
         }
 
+        // 验证 logs 和 exps 的双射关系
+        for (let i = 0; i < size - 1; i++) {
+            if (logs[exps[i]] !== i) {
+                throw new Error(`Mismatch in logs and exps at index ${i}`);
+            }
+        }
+
+        // 将 logs 和 exps 表赋值到配置中
         this.config.logs = logs;
         this.config.exps = exps;
+
+        console.log("Exps length:", exps.length, "Logs length:", logs.length);
     }
+
+
 
     /**
      * 設置隨機數生成器
@@ -421,9 +448,21 @@ export class Secrets {
     private padLeft(input: string, length: number = this.config.bits): string {
         return input.padStart(length, "0");
     }
-    private splitNumStringToIntArray(binaryString: string, chunkSize: number): number[] {
-        const chunks: string[] = binaryString.match(new RegExp(`.{1,${chunkSize}}`, "g")) || [];
-        return chunks.map(chunk => parseInt(chunk, 2));
+    private splitNumStringToIntArray(str: string, padLength: number): number[] {
+        var parts = [],
+            i
+
+        if (padLength) {
+            str = this.padLeft(str, padLength)
+        }
+
+        for (i = str.length; i > settings.bits; i -= settings.bits) {
+            parts.push(parseInt(str.slice(i - settings.bits, i), 2))
+        }
+
+        parts.push(parseInt(str.slice(0, i), 2))
+
+        return parts
     }
 
     /**
@@ -475,6 +514,7 @@ export class Secrets {
         return x.map((xVal, i) =>
             this.constructPublicShareString(this.config.bits, xVal, this.bin2hex(y[i]))
         );
+
     }
 
 
@@ -489,7 +529,7 @@ export class Secrets {
     }
 
     extractShareComponents(share: string): { bits: number; id: number; data: string } {
-        
+
         // Extract the bits from the first character of the share (Base 36)
         const bits = parseInt(share.charAt(0), 36);
         if (!Number.isInteger(bits) || bits < settings.minBits || bits > settings.maxBits) {
@@ -497,21 +537,21 @@ export class Secrets {
                 `Invalid share: Number of bits must be an integer between ${settings.minBits} and ${settings.maxBits}, inclusive.`
             );
         }
-    
+
         // Calculate max shares and determine the ID length
-        const maxShares = Math.pow(2, bits) - 1;
+        const maxShares = (1 << bits) - 1;
         const idLength = maxShares.toString(this.config.radix).length;
-    
+
         // Define a regex to extract the components of the share
         const regex = new RegExp(
             `^([a-kA-K3-9]{1})([a-fA-F0-9]{${idLength}})([a-fA-F0-9]+)$`
         );
-    
+
         const match = regex.exec(share);
         if (!match) {
             throw new Error("The share data provided is invalid: " + share);
         }
-    
+
         // Extract and validate the share ID
         const id = parseInt(match[2], this.config.radix);
         if (!Number.isInteger(id) || id < 1 || id > maxShares) {
@@ -519,39 +559,42 @@ export class Secrets {
                 `Invalid share: Share ID must be an integer between 1 and ${maxShares}, inclusive.`
             );
         }
-    
+
         // Return the extracted components as an object
-        return {
-            bits,
-            id,
-            data: match[3], // Hexadecimal data of the share
+        if (match && match[3]) {
+            return {
+                bits,
+                id,
+                data: match[3], // Hexadecimal data of the share
+            }
         }
+        throw new Error("Invalid share: Share data is missing.");
     };
-    
+
 
     combine(shares: string[], at: number = 0): string {
         if (!shares || shares.length === 0) {
             throw new Error("No shares provided for combination.");
         }
-    
+
         let setBits: number | undefined;
         const x: number[] = [];
         const y: number[][] = [];
-    
+
         for (const shareStr of shares) {
             const share = this.extractShareComponents(shareStr);
-    
+
             // Validate bit settings across shares
             if (setBits === undefined) {
                 setBits = share.bits;
             } else if (share.bits !== setBits) {
                 throw new Error("Mismatched shares: Different bit settings.");
             }
-    
+
             // Process share if its ID is not already in `x`
             if (!x.includes(share.id)) {
                 x.push(share.id);
-    
+
                 const splitShare = Secrets.splitNumStringToIntArray(this.hex2bin(share.data), this.config.bits);
 
                 for (let j = 0; j < splitShare.length; j++) {
@@ -562,24 +605,25 @@ export class Secrets {
                 }
             }
         }
-    
+
         // Use Lagrange interpolation to reconstruct the secret
         let result = "";
         for (const shareRow of y) {
-            const interpolatedValue = Secrets.lagrange(at, x, shareRow,this.config);
+            const interpolatedValue = Secrets.lagrange(at, x, shareRow, this.config);
             result = this.padLeft(interpolatedValue.toString(2)) + result;
         }
-    
+
         // If `at` is non-zero, return the interpolated share directly
         if (at >= 1) {
             return this.bin2hex(result);
         }
-    
+
         // Remove the padding marker ("1") added during sharing and convert to hex
         const secretBinary = result.slice(result.indexOf("1") + 1);
         return this.bin2hex(secretBinary);
     }
-    random(bits : number = this.config.bits): string {
+
+    random(bits: number = this.config.bits): string {
         if (
             typeof bits !== "number" ||
             bits % 1 !== 0 ||
@@ -598,27 +642,27 @@ export class Secrets {
         if (typeof id === "string") {
             id = parseInt(id, this.config.radix);
         }
-    
+
         // Validate `id`
         if (!Number.isInteger(id) || id < 1 || id >= Math.pow(2, this.config.bits)) {
             throw new Error(
                 `Invalid 'id': Must be an integer between 1 and ${Math.pow(2, this.config.bits) - 1}, inclusive.`
             );
         }
-    
+
         // Convert `id` to the required radix representation
         const radid = id.toString(this.config.radix);
-    
+
         // Validate shares and extract the first share's components
         const firstShare = shares[0];
         const share = this.extractShareComponents(firstShare);
-    
+
         // Construct the new share
         return Secrets.constructPublicShareString(
             share.bits,  // Use the same bit setting as the first share
             Number(radid),       // New share's ID in the configured radix
             this.combine(shares, id) // Combine existing shares to compute the new share
-            ,this.config
+            , this.config
         );
     }
     static hex2str(hex: string): string {
@@ -650,7 +694,7 @@ export class Secrets {
     }
 
     str2hex(str: string): string {
-        
+
         return Secrets.str2hex(str);
     }
 

@@ -9,11 +9,35 @@
 
 import AES from 'aes-js';
 import { ec } from 'elliptic';
-import { Secrets } from 'secretsjs_grempe_rewrite';
+import { Secrets } from './secrets_re';
 
-const secrets = new Secrets();
+
 
 onMounted(() => {
+
+    const secrets = new Secrets();
+    console.log( 1<< 8);
+    
+    console.log("test L");
+    const x = [4, 5, 6];
+    const y = [10, 5.25, 1]; // 对应 f(4), f(5), f(6)
+    const result = Secrets.lagrange(18, x, y, secrets.getConfig()); // 应还原 f(18) = -11
+    console.log("log", secrets.getConfig().logs.length);
+    
+    {
+        const x = [1, 2];
+        const y = [3, 7]; // 对应 f(1) = 3, f(2) = 7
+        const result = Secrets.lagrange(3, x, y, secrets.getConfig()); // 应还原 f(3) 
+        console.log("插值结果2:", result);
+
+    }
+    console.log("插值结果:", result);
+
+
+    console.log("end test L");
+
+
+
     // ECC 初始化
     const EC = new ec('p256'); // 使用 P-256 橢圓曲線
 
@@ -113,11 +137,15 @@ onMounted(() => {
     class ShamirSecretSharing implements SecretSharing {
         split(secret: string, numShares: number, threshold: number): string[] {
             const hexSecret = secrets.str2hex(secret); // 將字串轉為 hex 格式
+            console.log("hexSecret", hexSecret);
+            
             return secrets.share(hexSecret, numShares, threshold); // 分割秘密
         }
 
         combine(shares: string[]): string {
             const hexSecret = secrets.combine(shares); // 還原秘密
+            console.log("hexSecret", hexSecret);
+            
             return secrets.hex2str(hexSecret); // 將 hex 格式轉回字串
         }
     }
@@ -155,10 +183,13 @@ onMounted(() => {
 
         // 3. 分割與還原
         const secretSharing = new ShamirSecretSharing();
-        const shares = secretSharing.split(encryptedSymmetric, 4, 3);//x,y // 分成 x 份，至少需要 y 份即可還原
+
+
+        const shares = secretSharing.split("1234", 4, 3);//x,y // 分成 x 份，至少需要 y 份即可還原
+
         console.log("分割後的訊息段:", shares);
 
-        const restoredMessage = secretSharing.combine([shares[0], shares[1]]);
+        const restoredMessage = secretSharing.combine([shares[0], shares[2]]);
         console.log("還原後的密文:", restoredMessage);
     }
     main()
