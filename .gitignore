@@ -23,6 +23,10 @@ logs
 .env.*
 !.env.example
 
+
+#local script
+script/
+
 # wrangler 
 .wrangler
 .codegpt
