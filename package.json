@@ -25,6 +25,7 @@
     "@types/qrcode": "^1.5.5",
     "aes-js": "^3.1.2",
     "consola": "^3.4.0",
+    "easy-shamir-secret-sharing": "^1.0.6",
     "elliptic": "^6.6.1",
     "hi-base32": "^0.5.1",
     "js-sha3": "^0.9.3",
@@ -36,6 +37,7 @@
     "qrcode": "^1.5.4",
     "secrets.js-grempe": "^2.0.0",
     "secretsjs_grempe_rewrite": "^1.0.3",
+    "shamir-secret-sharing": "^0.0.4",
     "vue": "latest",
     "vue-router": "latest"
   },
