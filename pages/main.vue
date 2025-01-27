@@ -1,208 +1,380 @@
 <template>
-  <div class="min-h-screen" :class="isDark ? 'bg-dark' : 'bg-gray-50'">
-    <div class="max-w-2xl mx-auto py-8 px-4 space-y-6">
-      <!-- Stories Section -->
-      <div class="overflow-x-auto">
-        <div class="flex space-x-4 pb-4">
-          <!-- Add Story Card -->
-          <div class="flex-shrink-0 w-32 h-48 rounded-xl overflow-hidden relative shadow-sm cursor-pointer group"
-            :class="isDark ? 'bg-dark-lighter' : 'bg-white'" @click="openCreateStory">
-            <div class="absolute inset-0 bg-gradient-to-b from-transparent to-black/50"></div>
-            <div
-              class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center absolute top-4 left-1/2 transform -translate-x-1/2">
-              <Icon name="bi:plus" class="w-6 h-6 text-white" />
-            </div>
-            <span class="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-white text-sm font-medium">
-              Create Story
-            </span>
-          </div>
+  <div class="min-h-screen relative" :class="isDark ? 'bg-dark-900' : 'bg-gray-50'">
+    <!-- Sidebar -->
+    <Sidebar 
+      v-model:expanded="sidebarExpanded"
+      :items="navigationItems"
+      :bottom-items="bottomItems"
+      :active-key="currentRoute"
+      @item-click="handleNavigate"
+    />
 
-          <!-- Story Items -->
-          <div v-for="(story, index) in stories" :key="story.id"
-            class="flex-shrink-0 w-32 h-48 rounded-xl overflow-hidden relative shadow-sm cursor-pointer"
-            @click="openStory(index)">
-            <img :src="story.image" class="w-full h-full object-cover" :alt="story.username">
-            <div class="absolute inset-0 bg-gradient-to-b from-transparent to-black/50"></div>
-            <div class="absolute top-4 left-1/2 transform -translate-x-1/2">
-              <div class="w-10 h-10 rounded-full border-2 border-blue-500 overflow-hidden">
-                <img :src="story.userImage" class="w-full h-full object-cover" :alt="story.username">
+    <!-- Main Content Area -->
+    <div 
+      class="transition-all duration-500"
+      :style="{
+        marginLeft: sidebarExpanded ? '16rem' : '4rem'
+      }"
+    >
+      <div class="max-w-2xl mx-auto py-8 px-4 space-y-6">
+        <!-- Header Actions (Moved from Top Navigation Bar) -->
+        <div class="flex items-center justify-between mb-8 p-4 rounded-xl" 
+             :class="isDark ? 'bg-dark-800' : 'bg-white'">
+          <!-- Search Area -->
+          <div class="search-container group flex-1 max-w-xl">
+            <div class="relative flex items-center">
+              <input
+                type="text"
+                placeholder="Search..."
+                class="w-full px-4 py-2 rounded-full border focus:outline-none focus:border-blue-500"
+                :class="isDark ? 'bg-dark border-gray-700 text-gray-300' : 'bg-white border-gray-300'"
+              />
+              <div 
+                v-if="isLoading"
+                class="absolute right-3 animate-spin text-primary"
+              >
+                <Loader2 class="w-4 h-4" />
               </div>
             </div>
-            <span class="absolute bottom-4 left-4 text-white text-sm font-medium">
-              {{ story.username }}
-            </span>
           </div>
-        </div>
-      </div>
 
-      <!-- Create Post Section -->
-      <div class="rounded-xl shadow-sm p-4 mb-6" :class="isDark ? 'bg-dark-lighter' : 'bg-white'">
-        <div class="flex items-center space-x-4">
-          <div class="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center">
-            <span class="text-xl text-white font-bold">{{ currentUser.icon }}</span>
-          </div>
-          <input v-model="newPostContent"
-            class="flex-1 px-4 py-2 rounded-full border focus:outline-none focus:border-blue-500"
-            :class="isDark ? 'bg-dark border-gray-700 text-gray-300' : 'bg-white border-gray-300'"
-            :placeholder="postPlaceholder" @focus="openCreatePost" />
-        </div>
-      </div>
+          <!-- Action Buttons -->
+          <div class="flex items-center space-x-6 ml-4">
 
-      <!-- Story Viewer -->
-      <StoryViewer v-if="selectedStoryIndex !== null" :is-open="selectedStoryIndex !== null" :stories="stories"
-        :initial-index="selectedStoryIndex" @close="closeStory" />
+            <button class="btn btn-ghost btn-circle">
+              <Bell class="h-5 w-5" />
+            </button>
+            <!-- 主題切換按鈕 -->
+            <button 
+              class="btn btn-ghost btn-circle"
+              @click="toggleTheme"
+            >
+              <component 
+                :is="isDark ? Sun : Moon" 
+                class="h-5 w-5"
+              />
+            </button>
 
-      <!-- Posts Feed -->
-      <div class="space-y-6">
-        <div v-for="post in displayedPosts" :key="post.id" class="rounded-xl shadow-sm"
-          :class="isDark ? 'bg-dark-lighter' : 'bg-white'">
-          <div class="p-4">
-            <!-- Post Header -->
+
+            <div class="divider divider-horizontal"></div>
+            <!-- User Actions -->
             <div class="flex items-center space-x-3">
-              <div class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
-                <span class="text-white font-bold">{{ post.icon }}</span>
+              <span class="text-sm">{{ currentUser.username }}</span>
+              <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                <span class="text-white font-bold">{{ currentUser.icon }}</span>
               </div>
-              <div>
-                <div class="font-semibold">{{ post.username }}</div>
-                <div class="text-sm text-gray-500">{{ formatTimeAgo(new Date(post.date)) }}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Rest of the content remains the same -->
+        <!-- Stories Section -->
+        <div class="rounded-xl p-4" :class="isDark ? 'bg-dark-800' : 'bg-white'"> <!-- 添加背景和padding -->
+          <div class="overflow-x-auto">
+            <div class="flex space-x-4 pb-4">
+              <!-- Add Story Card -->
+              <div class="flex-shrink-0 w-32 h-48 rounded-xl overflow-hidden relative shadow-sm cursor-pointer group"
+                :class="isDark ? 'bg-dark-lighter' : 'bg-white'" @click="openCreateStory">
+                <div class="absolute inset-0 bg-gradient-to-b from-transparent to-black/50"></div>
+                <div
+                  class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center absolute top-4 left-1/2 transform -translate-x-1/2">
+                  <PlusIcon class="w-6 h-6 text-white" />
+                </div>
+                <span class="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-white text-sm font-medium">
+                  Create Story
+                </span>
+              </div>
+
+              <!-- Story Items -->
+              <div v-for="(story, index) in stories" :key="story.id"
+                class="flex-shrink-0 w-32 h-48 rounded-xl overflow-hidden relative shadow-sm cursor-pointer"
+                @click="openStory(index)">
+                <img :src="story.image" class="w-full h-full object-cover" :alt="story.username">
+                <div class="absolute inset-0 bg-gradient-to-b from-transparent to-black/50"></div>
+                <div class="absolute top-4 left-1/2 transform -translate-x-1/2">
+                  <div class="w-10 h-10 rounded-full border-2 border-blue-500 overflow-hidden">
+                    <img :src="story.userImage" class="w-full h-full object-cover" :alt="story.username">
+                  </div>
+                </div>
+                <span class="absolute bottom-4 left-4 text-white text-sm font-medium">
+                  {{ story.username }}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+          <!-- Create Post Section -->
+          <div class="rounded-xl shadow-sm p-6" :class="isDark ? 'bg-dark-800' : 'bg-white'"> <!-- 增加 padding -->
+            <div class="flex items-center space-x-4">
+              <div class="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center">
+                <span class="text-xl text-white font-bold">{{ currentUser.icon }}</span>
+              </div>
+              <input v-model="newPostContent"
+                class="flex-1 px-4 py-2 rounded-full border focus:outline-none focus:border-blue-500"
+                :class="isDark ? 'bg-dark border-gray-700 text-gray-300' : 'bg-white border-gray-300'"
+                :placeholder="postPlaceholder" @focus="openCreatePost" />
+            </div>
+          </div>
+
+          <!-- Posts Feed -->
+          <div class="space-y-6">
+            <div v-for="post in displayedPosts" 
+               :key="post.id" 
+               class="rounded-xl shadow-sm p-6" 
+               :class="isDark ? 'bg-dark-800' : 'bg-white'">
+              <div class="p-4">
+                <!-- Post Header -->
+                <div class="flex items-center space-x-3">
+                  <div class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
+                    <span class="text-white font-bold">{{ post.icon }}</span>
+                  </div>
+                  <div>
+                    <div class="font-semibold">{{ post.username }}</div>
+                    <div class="text-sm text-gray-500">{{ formatTimeAgo(new Date(post.date)) }}</div>
+                  </div>
+                </div>
+
+                <!-- Post Content -->
+                <h1 class="text-xl font-bold mb-4">{{ post.title }}</h1>
+                <div class="space-y-2" :class="isDark ? 'text-gray-300' : 'text-gray-700'">
+                  <p>{{ post.content }}</p>
+                  <ImageBox v-if="post.images" class="pt-2" :images="post.images" />
+                </div>
+
+                <!-- Tags -->
+                <div class="flex flex-wrap gap-2 mt-4">
+                  <span v-for="tag in post.tags" :key="tag" class="px-3 py-1 rounded-full text-sm"
+                    :class="isDark ? 'text-blue-400 bg-blue-900/30' : 'bg-blue-50 text-blue-600'">
+                    #{{ tag }}
+                  </span>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex items-center justify-between mt-4 pt-4 border-t dark:border-gray-800">
+                  <div class="flex space-x-6">
+                    <button @click="toggleLike(post)" class="flex items-center space-x-2"
+                      :class="post.isLiked ? 'text-pink-500' : 'text-gray-500 hover:text-pink-500'">
+                      <Icon :name="post.isLiked ? 'bi:balloon-heart-fill' : 'bi:balloon-heart'" class="h-5 w-5" />
+                      <span>{{ post.likes }}</span>
+                    </button>
+                    <button @click="toggleComments(post)" class="flex items-center space-x-2"
+                      :class="post.showComments ? 'text-blue-500' : 'text-gray-500 hover:text-blue-500'">
+                      <Icon name="bi:chat-left-dots" class="w-5 h-5" />
+                      <span>{{ post.commentCount }}</span>
+                    </button>
+                  </div>
+                  <button @click="sharePost(post)" class="rounded-full text-gray-500 hover:text-green-500">
+                    <Icon name="bi:share" class="h-5 w-5" />
+                  </button>
+                </div>
+
+                <!-- Comments Section -->
+                <div v-if="post.showComments" class="mt-4 pt-4 border-t dark:border-gray-800">
+                  <!-- Add Comment -->
+                  <div class="flex items-center space-x-3 mb-4">
+                    <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                      <span class="text-sm text-white font-bold">{{ currentUser.icon }}</span>
+                    </div>
+                    <div class="flex-1 relative">
+                      <input v-model="post.newComment" @keyup.enter="addComment(post)" type="text"
+                        placeholder="Add a comment..."
+                        class="w-full px-4 py-2 rounded-full border focus:outline-none focus:border-blue-500"
+                        :class="isDark ? 'bg-dark border-gray-700 text-gray-300' : 'bg-white border-gray-300'" />
+                    </div>
+                    <button @click="addComment(post)" class="px-4 py-2 text-blue-500 font-semibold disabled:opacity-50"
+                      :disabled="!post.newComment?.trim()">
+                      Post
+                    </button>
+                  </div>
+
+                  <!-- Comments List -->
+                  <div class="space-y-4">
+                    <div v-for="comment in post.comments" :key="comment.id" class="relative">
+                      <div v-if="!comment.isEditing">
+                        <Comment :icon="comment.icon" :username="comment.username" :user-i-d="comment.userID"
+                          :date="new Date(comment.date)" :content="comment.content" />
+                        <!-- Comment Actions -->
+                        <div v-if="comment.userID === currentUser.userID" class="absolute top-4 right-4 flex space-x-2">
+                          <button @click="startEdit(comment)"
+                            class="px-3 py-1 rounded-full text-sm bg-blue-500 text-white hover:bg-blue-600">
+                            Edit
+                          </button>
+                          <button @click="deleteComment(post, comment)"
+                            class="px-3 py-1 rounded-full text-sm bg-red-500 text-white hover:bg-red-600">
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+
+                      <!-- Edit Mode -->
+                      <div v-else class="bg-gray-50 dark:bg-dark-lighter rounded-xl p-4">
+                        <textarea v-model="comment.editContent"
+                          class="w-full px-4 py-2 rounded-lg border focus:outline-none focus:border-blue-500 min-h-[100px]"
+                          :class="isDark ? 'bg-dark border-gray-700 text-gray-300' : 'bg-white border-gray-300'"></textarea>
+                        <div class="flex justify-end space-x-2 mt-2">
+                          <button @click="cancelEdit(comment)"
+                            class="px-4 py-2 rounded-full text-sm text-gray-600 hover:text-gray-800">
+                            Cancel
+                          </button>
+                          <button @click="updateComment(post, comment)"
+                            class="px-4 py-2 rounded-full text-sm bg-blue-500 text-white hover:bg-blue-600"
+                            :disabled="!comment.editContent?.trim()">
+                            {{ comment.editContent ? 'Save' : 'Cannot Save Empty' }}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <!-- Post Content -->
-            <h1 class="text-xl font-bold mb-4">{{ post.title }}</h1>
-            <div class="space-y-2" :class="isDark ? 'text-gray-300' : 'text-gray-700'">
-              <p>{{ post.content }}</p>
-              <ImageBox v-if="post.images" class="pt-2" :images="post.images" />
+            <!-- Loading Indicator -->
+            <div v-if="isLoading" class="flex justify-center items-center py-4">
+              <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
             </div>
 
-            <!-- Tags -->
-            <div class="flex flex-wrap gap-2 mt-4">
-              <span v-for="tag in post.tags" :key="tag" class="px-3 py-1 rounded-full text-sm"
-                :class="isDark ? 'text-blue-400 bg-blue-900/30' : 'bg-blue-50 text-blue-600'">
-                #{{ tag }}
-              </span>
-            </div>
+            <!-- Intersection Observer Target -->
+            <div ref="infiniteScrollTrigger" class="h-4 w-full"></div>
 
-            <!-- Action Buttons -->
-            <div class="flex items-center justify-between mt-4 pt-4 border-t dark:border-gray-800">
-              <div class="flex space-x-6">
-                <button @click="toggleLike(post)" class="flex items-center space-x-2"
-                  :class="post.isLiked ? 'text-pink-500' : 'text-gray-500 hover:text-pink-500'">
-                  <Icon :name="post.isLiked ? 'bi:balloon-heart-fill' : 'bi:balloon-heart'" class="h-5 w-5" />
-                  <span>{{ post.likes }}</span>
-                </button>
-                <button @click="toggleComments(post)" class="flex items-center space-x-2"
-                  :class="post.showComments ? 'text-blue-500' : 'text-gray-500 hover:text-blue-500'">
-                  <Icon name="bi:chat-left-dots" class="w-5 h-5" />
-                  <span>{{ post.commentCount }}</span>
-                </button>
-              </div>
-              <button @click="sharePost(post)" class="rounded-full text-gray-500 hover:text-green-500">
-                <Icon name="bi:share" class="h-5 w-5" />
+            <!-- Error Message -->
+            <div v-if="error" class="text-center py-4 text-red-500">
+              {{ error }}
+              <button @click="retryLoading" class="text-blue-500 hover:underline ml-2">
+                Retry
               </button>
             </div>
-
-            <!-- Comments Section -->
-            <div v-if="post.showComments" class="mt-4 pt-4 border-t dark:border-gray-800">
-              <!-- Add Comment -->
-              <div class="flex items-center space-x-3 mb-4">
-                <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-                  <span class="text-sm text-white font-bold">{{ currentUser.icon }}</span>
-                </div>
-                <div class="flex-1 relative">
-                  <input v-model="post.newComment" @keyup.enter="addComment(post)" type="text"
-                    placeholder="Add a comment..."
-                    class="w-full px-4 py-2 rounded-full border focus:outline-none focus:border-blue-500"
-                    :class="isDark ? 'bg-dark border-gray-700 text-gray-300' : 'bg-white border-gray-300'" />
-                </div>
-                <button @click="addComment(post)" class="px-4 py-2 text-blue-500 font-semibold disabled:opacity-50"
-                  :disabled="!post.newComment?.trim()">
-                  Post
-                </button>
-              </div>
-
-              <!-- Comments List -->
-              <div class="space-y-4">
-                <div v-for="comment in post.comments" :key="comment.id" class="relative">
-                  <div v-if="!comment.isEditing">
-                    <Comment :icon="comment.icon" :username="comment.username" :user-i-d="comment.userID"
-                      :date="new Date(comment.date)" :content="comment.content" />
-                    <!-- Comment Actions -->
-                    <div v-if="comment.userID === currentUser.userID" class="absolute top-4 right-4 flex space-x-2">
-                      <button @click="startEdit(comment)"
-                        class="px-3 py-1 rounded-full text-sm bg-blue-500 text-white hover:bg-blue-600">
-                        Edit
-                      </button>
-                      <button @click="deleteComment(post, comment)"
-                        class="px-3 py-1 rounded-full text-sm bg-red-500 text-white hover:bg-red-600">
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-
-                  <!-- Edit Mode -->
-                  <div v-else class="bg-gray-50 dark:bg-dark-lighter rounded-xl p-4">
-                    <textarea v-model="comment.editContent"
-                      class="w-full px-4 py-2 rounded-lg border focus:outline-none focus:border-blue-500 min-h-[100px]"
-                      :class="isDark ? 'bg-dark border-gray-700 text-gray-300' : 'bg-white border-gray-300'"></textarea>
-                    <div class="flex justify-end space-x-2 mt-2">
-                      <button @click="cancelEdit(comment)"
-                        class="px-4 py-2 rounded-full text-sm text-gray-600 hover:text-gray-800">
-                        Cancel
-                      </button>
-                      <button @click="updateComment(post, comment)"
-                        class="px-4 py-2 rounded-full text-sm bg-blue-500 text-white hover:bg-blue-600"
-                        :disabled="!comment.editContent?.trim()">
-                        {{ comment.editContent ? 'Save' : 'Cannot Save Empty' }}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
-        </div>
-
-        <!-- Loading Indicator -->
-        <div v-if="isLoading" class="flex justify-center items-center py-4">
-          <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-        </div>
-
-        <!-- Intersection Observer Target -->
-        <div ref="infiniteScrollTrigger" class="h-4 w-full"></div>
-
-        <!-- Error Message -->
-        <div v-if="error" class="text-center py-4 text-red-500">
-          {{ error }}
-          <button @click="retryLoading" class="text-blue-500 hover:underline ml-2">
-            Retry
-          </button>
-        </div>
       </div>
     </div>
 
-    <!-- Add these modals just before closing the main div -->
+    <!-- Modals -->
+    <StoryViewer v-if="selectedStoryIndex !== null" :is-open="selectedStoryIndex !== null" :stories="stories"
+      :initial-index="selectedStoryIndex" @close="closeStory" />
+
     <CreateModal v-if="showCreateStory" :is-open="showCreateStory" type="story" @close="showCreateStory = false"
       @submit="handleStorySubmit" />
 
     <CreateModal v-if="showCreatePost" :is-open="showCreatePost" type="post" @close="showCreatePost = false"
       @submit="handlePostSubmit" />
 
-    <!-- Add ShareModal component -->
     <ShareModal v-if="shareModalPost" :is-open="!!shareModalPost" :post="shareModalPost"
       @close="shareModalPost = null" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import Comment from '~/components/Comment.vue';
 import StoryViewer from '~/components/StoryViewer.vue';
 import CreateModal from '~/components/CreateModal.vue';
 import ShareModal from '~/components/ShareModal.vue';
+import {
+  Home,
+  Search,
+  Bell,
+  MessageCircle,
+  Bookmark,
+  Settings,
+  User,
+  LogOut,
+  Plus as PlusIcon,
+  Sun,
+  Moon,
+  //X,
+  Loader2
+} from 'lucide-vue-next'
+import type { MenuItem } from '~/pages/dashboard/types/dashboard.d.ts'
+
 
 const DarkMode = useThemeStore();
 const isDark = ref(DarkMode.isDark);
+const sidebarExpanded = ref(false)
+const currentRoute = ref('home')
+
+// Navigation items
+const navigationItems = computed<MenuItem[]>(() => [
+  { 
+    key: 'home',
+    icon: Home,
+    label: 'Home',
+    route: '/'
+  },
+  { 
+    key: 'explore',
+    icon: Search,
+    label: 'Explore',
+    route: '/explore'
+  },
+  { 
+    key: 'messages',
+    icon: MessageCircle,
+    label: 'Messages',
+    route: '/messages'
+  },
+  { 
+    key: 'notifications',
+    icon: Bell,
+    label: 'Notifications',
+    route: '/notifications'
+  },
+  { 
+    key: 'bookmarks',
+    icon: Bookmark,
+    label: 'Bookmarks',
+    route: '/bookmarks'
+  }
+])
+
+const bottomItems = computed<MenuItem[]>(() => [
+  { 
+    key: 'settings',
+    icon: Settings,
+    label: 'Settings',
+    route: '/settings'
+  },
+  { 
+    key: 'profile',
+    icon: User,
+    label: 'Profile',
+    route: '/profile'
+  },
+  { 
+    key: 'logout',
+    icon: LogOut,
+    label: 'Logout'
+  }
+])
+
+const handleNavigate = (item: MenuItem) => {
+  if (item.key === 'logout') {
+    // Handle logout
+    console.log('Logout clicked')
+    return
+  }
+  currentRoute.value = item.key
+  // Handle navigation
+  console.log('Navigate to:', item.route)
+}
+
+// 主題切換函數
+const toggleTheme = () => {
+  if (process.client) {
+    isDark.value = !isDark.value
+    document.documentElement.dataset.theme = isDark.value ? 'dark' : 'light'
+    localStorage.setItem('theme', isDark.value ? 'dark' : 'light')
+  }
+}
+
+// 在 onMounted 中添加主題初始化
+onMounted(() => {
+  if (process.client) {
+    const savedTheme = localStorage.getItem('theme') || 'light'
+    isDark.value = savedTheme === 'dark'
+    document.documentElement.dataset.theme = savedTheme
+  }
+})
 
 interface UserPost {
     id: number;
@@ -644,6 +816,50 @@ const sharePost = (post:any) => {
 </script>
 
 <style scoped>
+
+/* 添加暗色模式的背景色變數 */
+:root {
+  --dark-900: #1a1a1a;
+  --dark-800: #2d2d2d;
+}
+
+.bg-dark-900 {
+  background-color: var(--dark-900);
+}
+
+/* 增強卡片陰影效果 */
+.shadow-sm {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1),
+              0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+/* 暗色模式下的陰影 */
+:is(.dark .shadow-sm) {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3),
+              0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* 平滑過渡 */
+.transition-all {
+  transition: all 0.3s ease-in-out;
+}
+
+.bg-dark-800 {
+  background-color: var(--dark-800);
+}
+
+/* 添加主題切換過渡效果 */
+.theme-transition {
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* 確保所有可能變化的元素都有平滑過渡 */
+* {
+  transition: background-color 0.3s ease, 
+              color 0.3s ease,
+              border-color 0.3s ease;
+}
+
 /* Add smooth transitions */
 .fade-enter-active,
 .fade-leave-active {
