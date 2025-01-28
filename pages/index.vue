@@ -38,8 +38,8 @@
 
     <section class="hero text-center py-16" :class="isDark ? 'bg-gray-600 text-white' : 'bg-gray-100 text-black'">
       <div class="max-w-2xl mx-auto">
-        <h1 class="text-4xl font-bold mb-4">Connect Securely, Share Freely</h1>
-        <p class="text-lg mb-6">
+        <h1 class="text-4xl 2xl:text-6xl font-bold mb-4">Connect Securely, Share Freely</h1>
+        <p class="text-lg 2xl:text-2xl mb-6">
           Your privacy is our priority. MsgFog ensures your conversations remain
           confidential and secure.
         </p>
@@ -56,16 +56,16 @@
     </section>
 
     <section id="features" class="py-12" :class="isDark ? 'bg-black text-white ' : 'bg-white text-black'">
-      <h2 class="text-3xl font-bold text-center mb-8" :class="isDark ? 'text-gray-200' : 'text-blank'">
+      <h2 class=" text-3xl 2xl:text-4xl font-bold text-center mb-8" :class="isDark ? 'text-gray-200' : 'text-blank'">
         Why Choose MsgFog?
       </h2>
       <div class="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto px-3">
         <div v-for="(feature, index) in features" :key="index"
-          class="flex flex-col items-center justify-center p-4 shadow-md rounded-md text-center"
+          class="flex flex-col items-center justify-center p-4 shadow-md rounded-md text-center  "
           :class="isDark ? 'bg-zinc-600' : 'bg-white'">
           <Icon :name="feature.icon" class="w-20 h-20" />
-          <h3 class="text-xl font-semibold mb-2">{{ feature.title }}</h3>
-          <p>{{ feature.description }}</p>
+          <h3 class="text-xl font-semibold mb-2 2xl:text-3xl pt-4 ">{{ feature.title }}</h3>
+          <p class=" text-lg 2xl:text-xl" >{{ feature.description }}</p>
         </div>
       </div>
     </section>
@@ -73,8 +73,8 @@
 
     <section id="about" class="py-12 text-center"
       :class="isDark ? ' text-white bg-gray-800' : ' text-black bg-gray-100 '">
-      <h2 class="text-3xl font-bold mb-4">About MsgFog</h2>
-      <p class=" items-center mx-3">MsgFog is built for those who value privacy and secure communication. Our platform
+      <h2 class="text-3xl font-bold mb-4 ">About MsgFog</h2>
+      <p class=" items-center mx-3 text-lg 2xl:text-xl">MsgFog is built for those who value privacy and secure communication. Our platform
         combines cutting-edge technology with a user-friendly experience to keep your conversations safe.</p>
       <p>Thank you for other 3 teammates cooperation.</p>
     </section>
@@ -86,9 +86,9 @@
       <!-- Loop through social media links using v-for -->
       <div class="flex justify-center gap-6">
         <button v-for="(item, index) in socialLinks" :key="index"
-          @click="navigateTo(item.url, { open: { target: '_blank' } })">
-          <Icon :name="item.icon" class="h-8 w-8 transition duration-300" />
-          <p v-if="item.comment">{{ item.comment }}</p>
+          @click="navigateTo(item.url, { open: { target: '_blank' } })" >
+          <Icon :name="item.icon"  class="h-8 w-8 transition duration-300 hover:bg-gradient-to-tl hover:from-violet-700 hover:via-red-600 hover:to-yellow-400 " />
+          <p v-if="item.comment" >{{ item.comment }}</p>
         </button>
       </div>
     </section>
@@ -131,7 +131,7 @@ const socialLinks = ref([
 
   }, {
     url: 'https://github.com/xva0001/fogx',
-    icon: 'bi:github', comment: "repo not available now ",
+    icon: 'bi:github', comment: "repo open source",
 
   },
   {

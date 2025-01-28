@@ -4,12 +4,7 @@
  */
 
 import { ref } from 'vue'
-import type { 
-  DashboardStats, 
-  ActivityData, 
-  RegionalData, 
-  UserActivity 
-} from '../types/dashboard'
+import type { DashboardStats, ActivityData, RegionalData, UserActivity } from './Idashboard'
 
 export function useDashboardData() {
   // Loading states
