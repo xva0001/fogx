@@ -18,6 +18,11 @@ export default defineNuxtConfig(
       // "@nuxtjs/supabase"
     ],
 
+    alias:{
+      "~~":"/pages/dashboard/composables",
+    },
+
+
     pages : true,
 
     turnstile:{

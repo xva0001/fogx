@@ -1,2 +1,5 @@
 # interface file
 pages/dashboard/composables/Idashboard.ts
+
+# old file
+*.old
