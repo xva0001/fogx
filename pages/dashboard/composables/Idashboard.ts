@@ -1,10 +1,3 @@
-export interface MenuItem {
-  key: string
-  label: string
-  icon: any
-  route?: string
-}
-
 export interface DashboardStats {
   activeUsers: number
   activeUsersChange: string

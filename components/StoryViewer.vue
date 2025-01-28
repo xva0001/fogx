@@ -1,5 +1,5 @@
 <template>
-  <div v-if="isOpen" class="fixed inset-0 z-50 bg-black flex items-center justify-center">
+  <div v-if="isOpen" class="fixed inset-0 z-50 bg-black flex items-center justify-center" @wheel.prevent.capture="handleScroll">
     <!-- Close button -->
     <button @click="close" class="absolute top-4 right-4 text-white">
       <Icon name="bi:x-lg" class="w-6 h-6" />
@@ -10,13 +10,13 @@
       <!-- Navigation buttons -->
       <button v-if="currentIndex > 0" 
               @click="prevStory" 
-              class="absolute left-4 top-1/2 -translate-y-1/2 text-white">
+              class="absolute left-4 top-1/2 -translate-y-1/2 text-white z-10">
         <Icon name="bi:chevron-left" class="w-8 h-8" />
       </button>
       
       <button v-if="currentIndex < stories.length - 1" 
               @click="nextStory" 
-              class="absolute right-4 top-1/2 -translate-y-1/2 text-white">
+              class="absolute right-4 top-1/2 -translate-y-1/2 text-white z-10">
         <Icon name="bi:chevron-right" class="w-8 h-8" />
       </button>
 
@@ -39,9 +39,13 @@
 </template>
 
 <script setup lang="ts">
+import type { IStory } from "~/composables/Istory";
 const props = defineProps({
   isOpen: Boolean,
-  stories: Array,
+  stories: {
+    type: Array as PropType<IStory[]>,
+    required: true
+  },
   initialIndex: {
     type: Number,
     default: 0
@@ -69,4 +73,25 @@ const prevStory = () => {
     currentIndex.value--;
   }
 };
-</script> 
+
+const handleScroll = (event: WheelEvent) => {
+  if (event.deltaY > 0) {
+    nextStory();
+  } else if (event.deltaY < 0) {
+    prevStory();
+  }
+};
+
+const handleKeydown = (event: KeyboardEvent) => {
+  console.log(event.key);
+  
+  if (!props.isOpen) {
+    return
+  }
+  console.log(event.key);
+  
+  if (event.key === 'Escape') {
+    close();
+  }
+};
+</script>

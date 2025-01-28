@@ -285,7 +285,8 @@ import {
   //X,
   Loader2
 } from 'lucide-vue-next'
-import type { MenuItem } from '~/pages/dashboard/types/dashboard.d.ts'
+import type { MenuItem } from '~/composables/IMenu';
+import type { IStory } from '~/composables/Istory';
 
 
 const DarkMode = useThemeStore();
@@ -407,7 +408,7 @@ const currentTimestamp = ref(Date.now());
 // Update timestamp every second
 onMounted(() => {
   const interval = setInterval(() => {
-    console.log('Updating timestamp:', Date.now());
+    //console.log('Updating timestamp:', Date.now());
     currentTimestamp.value = Date.now();
   }, 1000);
 
@@ -467,7 +468,7 @@ const displayedPosts = ref(initialPosts); // Initialize with initial posts
 const error = ref<string | null>(null);
 
 // Add stories data
-const stories = ref([
+const stories = ref<IStory[]>([
   {
     id: 1,
     username: 'TechEnthusiast',

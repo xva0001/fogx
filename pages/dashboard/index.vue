@@ -15,7 +15,7 @@ import {
   Loader2
 } from 'lucide-vue-next'
 import { useDebounceFn } from '@vueuse/core'
-import type { MenuItem } from './composables/Idashboard'
+import type { MenuItem } from '~/composables/IMenu'
 import { useDashboardData } from './composables/useDashboardData'
 
 // State management
