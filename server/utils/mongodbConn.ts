@@ -20,13 +20,13 @@ export const mongodb_conn_fn = async (uri:string|undefined) => {
 }
 
 
-export const mongodb_user_conn_fn = async () => {
+export const mongodb_user_conn_fn = async ():Promise<mongoose.Connection> => {
     const uri = process.env.MONGODB_USER_DB;
     const conn = await mongodb_conn_fn(uri)
     return conn //?.model("User",userSchema)
 }
 
-export const mongodb_post_conn_fn = async ()=>{
+export const mongodb_post_conn_fn = async ():Promise<mongoose.Connection>=>{
         const uri = process.env.MONGODB_POST_DB
         const conn = await mongodb_conn_fn(uri)
         return conn //?.model("Post",PostSchema)
