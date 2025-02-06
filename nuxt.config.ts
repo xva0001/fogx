@@ -24,6 +24,9 @@ export default defineNuxtConfig(
 
 
     pages : true,
+    devServer:{
+      host:"0.0.0.0"
+    },
 
     turnstile:{
       siteKey:  import.meta.dev?"1x00000000000000000000AA":process.env.NUXT_PUBLIC_TURNSTILE_SITE_KEY,
