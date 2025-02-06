@@ -1,7 +1,7 @@
 <template>
     <div class="min-h-screen bg-gray-100 flex items-center justify-center p-4">
       <div class="bg-white shadow-md rounded p-6 w-full max-w-xl">
-        <h1 class="text-2xl font-bold mb-6 text-center">訊息分割與合併工具</h1>
+        <h1 class="text-2xl font-bold mb-6 text-center">訊息分割與合併工具(Shamir Secret Sharing) </h1>
   
         <!-- 輸入訊息 -->
         <div class="mb-4">

@@ -1,33 +1,71 @@
-import mongoose from "mongoose"
-import { userSchema } from "../db_data_schema/UserSchema"
-import { PostSchema } from "../db_data_schema/PostSchema"
+import mongoose, { Connection, ConnectOptions } from "mongoose";
 
-export const mongodb_conn_fn = async (uri:string|undefined) => {
-    try {
-        
-        if (uri==undefined) {
-            throw Error("undefine mongodb uri")
-        }
-        const db_conn = await mongoose.createConnection(uri, { serverApi: { version: "1", strict: true, deprecationErrors: true },connectTimeoutMS:10_000 })
-        console.log("connection ok")
-        return db_conn
+// 定義 mongoose 連線選項
+const MONGO_OPTIONS: ConnectOptions = {
+  serverApi: {
+    version: "1",
+    strict: true,
+    deprecationErrors: true,
+  },
+  connectTimeoutMS: 10_000,
+};
+
+/**
+ * 根據給定的 MongoDB URI 建立連線
+ * @param uri - MongoDB 連線字串
+ * @returns Promise<Connection>
+ */
+export const mongoDBConn = async (uri: string): Promise<Connection> => {
+  if (!uri) {
+    throw new Error("Undefined MongoDB URI");
+  }
+  try {
+    const connection = await mongoose.createConnection(uri, MONGO_OPTIONS);
+    //console.log("MongoDB connection successful");
+    return connection;
+  } catch (error) {
+    console.error("Error connecting to MongoDB:", error);
+    throw error;
+  }
+};
+
+/**
+ * 根據環境變數的鍵名取得 MongoDB URI 並建立連線
+ * @param envKey - 儲存 MongoDB URI 的環境變數鍵名 (例如: "mdb1")
+ * @returns Promise<Connection>
+ */
+export const createDBConnection = async (envKey: string): Promise<Connection> => {
+  const uri = process.env[envKey];//get env 
+  console.log(uri);
+  
+  if (!uri) {
+    throw new Error(`Environment variable "${envKey}" is undefined.`);
+  }
+  return await mongoDBConn(uri);
+};
+
+/**
+ * 平行初始化多個資料庫連線
+ */
+export const dbConnsOpen = async (dbNames: string[]): Promise<void> => {
+  const dbConnections = [];
+
+  try {
+    for (const name of dbNames) {
+      const db = await createDBConnection(name);
+      dbConnections.push(db);
+
+      db.on('error', (error) => {
+        console.error(`Database connection error for ${name}: ${error.message}`);
+      });
+      db.on("connected",()=>{
+        console.log(`Connected to ${name}`)
+      })
     }
-    catch (e) {
-        console.log(e);
-        console.log("Error")
-        throw e
-    }
-}
 
+    //console.log("All MongoDB connections are established");
+  } catch (error) {
+    
+  }
+};
 
-export const mongodb_user_conn_fn = async ():Promise<mongoose.Connection> => {
-    const uri = process.env.MONGODB_USER_DB;
-    const conn = await mongodb_conn_fn(uri)
-    return conn //?.model("User",userSchema)
-}
-
-export const mongodb_post_conn_fn = async ():Promise<mongoose.Connection>=>{
-        const uri = process.env.MONGODB_POST_DB
-        const conn = await mongodb_conn_fn(uri)
-        return conn //?.model("Post",PostSchema)
-}
