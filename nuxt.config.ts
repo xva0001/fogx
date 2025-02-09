@@ -25,7 +25,7 @@ export default defineNuxtConfig(
 
     pages : true,
     devServer:{
-      host:"0.0.0.0"
+      host:"127.0.0.1"
     },
 
     turnstile:{
