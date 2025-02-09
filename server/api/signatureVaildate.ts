@@ -1,21 +1,23 @@
 import { z } from "zod";
-import { defineEventHandler, readBody } from "h3";
-import EC  from "elliptic";
-import sha3 from "js-sha3";
-
-
+import { defineEventHandler, readBody, createError } from "h3";
+import EC from "elliptic";
 
 const signObjSchema = z.object({
-  sign: z.string().regex(/^[a-fA-F0-9]+$/),
-  org: z.string()
+  sign: z.string().regex(/^[a-fA-F0-9]+$/), // Signature in hexadecimal format
+  hashedMessage: z.string().regex(/^[a-fA-F0-9]{64}$/) // SHA3-384 produces 96-character hex
 });
 
 export default defineEventHandler(async (event) => {
-  // Load public key from environment variable
-  const ec = new EC.ec("ed25519"); // Ensure curve matches your keypair
-  const publicKeyHex = process.env.ECDSA_SIGN_PUBLIC_KEY!;
+  // Load public key from environment variables
+  const ec = new EC.ec("ed25519"); // Ensure curve matches your keys
+  const publicKeyHex = process.env.ECDSA_SIGN_PUBLIC_KEY;
+  console.log(publicKeyHex);
+  
   if (!publicKeyHex) {
-    throw new Error("Missing ECDSA public key in environment variables.");
+    throw createError({
+      status: 500,
+      message: "Missing ECDSA public key in environment variables."
+    });
   }
 
   // Parse and validate request body
@@ -24,22 +26,24 @@ export default defineEventHandler(async (event) => {
 
   if (!result.success) {
     return createError({
-        status : 400,
-        message : "request invaild",
-        stack:""
-    }).toJSON()
+      status: 400,
+      message: "Invalid request format.",
+      stack: ""
+    }).toJSON();
   }
 
-  const { sign, org } = result.data;
+  const { sign, hashedMessage } = result.data;
 
-  // Hash the message (org) using SHA3-384
-  const hashMessage = sha3.sha3_384(org);
-
+  console.log(hashedMessage);
+  
   try {
     const keyv = ec.keyFromPublic(publicKeyHex, "hex");
 
-    // Verify signature
-    const isValid = keyv.verify(hashMessage, sign);
+    // Directly verify the hashed message
+    const isValid = keyv.verify(hashedMessage, sign);
+
+    console.log(isValid);
+    
 
     return {
       success: true,
