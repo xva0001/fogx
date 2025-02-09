@@ -38,7 +38,8 @@
     "secretsjs_grempe_rewrite": "^1.0.3",
     "shamir-secret-sharing": "^0.0.4",
     "vue": "latest",
-    "vue-router": "latest"
+    "vue-router": "latest",
+    "zod": "^3.24.1"
   },
   "devDependencies": {
     "daisyui": "^4.12.22"

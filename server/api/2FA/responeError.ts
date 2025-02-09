@@ -9,5 +9,5 @@ export const invaildRequest =  createError({
 })
 
 export default defineEventHandler((event)=>{
-    return invaildRequest
+    return invaildRequest.toJSON()
 })
