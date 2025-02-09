@@ -1,6 +1,4 @@
-<script>
-// @deprecated, wrongn use
-</script>
+
 <template>
   <div class="p-8 max-w-3xl mx-auto">
     <h1 class="text-2xl font-bold mb-4">ED25519 Encryption & Decryption</h1>
@@ -38,6 +36,7 @@
 </template>
 
 <script setup lang="ts">
+// @deprecated, wrong use
 import { ref } from 'vue';
 import forge from 'node-forge';
 
