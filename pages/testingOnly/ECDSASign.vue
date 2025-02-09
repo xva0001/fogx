@@ -1,52 +1,96 @@
 <template>
-  <div class="p-10 max-w-md mx-auto">
-    <h1 class="text-2xl font-bold mb-4">ECDSA 簽署與驗證</h1>
-    <div class="mb-4">
-      <textarea
-        v-model="message"
-        class="w-full p-2 border rounded"
-        rows="4"
-        placeholder="輸入要簽署的消息"
-      ></textarea>
-      <textarea v-model="privateKey" ></textarea>
-      <textarea v-model="publicKey" ></textarea>
-      <textarea v-model="signature" ></textarea>
+  <div class="p-10 max-w-xl mx-auto bg-white rounded-2xl shadow-xl">
+    <h1 class="text-3xl font-extrabold mb-6 text-center text-blue-600">
+      ECDSA 簽署與驗證
+    </h1>
+
+    <div class="space-y-4">
+      <div>
+        <label for="message" class="block text-gray-700 font-medium mb-1">消息</label>
+        <textarea
+          id="message"
+          v-model="message"
+          class="w-full p-3 border rounded-md focus:ring-2 focus:ring-blue-400 focus:outline-none"
+          rows="4"
+          placeholder="輸入要簽署的消息"
+        ></textarea>
+      </div>
+
+      <div>
+        <label for="privateKey" class="block text-gray-700 font-medium mb-1">私鑰</label>
+        <textarea
+          id="privateKey"
+          v-model="privateKey"
+          class="w-full p-3 border rounded-md focus:ring-2 focus:ring-blue-400 focus:outline-none"
+          rows="3"
+          placeholder="輸入私鑰"
+        ></textarea>
+      </div>
+
+      <div>
+        <label for="publicKey" class="block text-gray-700 font-medium mb-1">公鑰</label>
+        <textarea
+          id="publicKey"
+          v-model="publicKey"
+          class="w-full p-3 border rounded-md focus:ring-2 focus:ring-blue-400 focus:outline-none"
+          rows="3"
+          placeholder="輸入公鑰"
+        ></textarea>
+      </div>
+
+      <div>
+        <label for="signature" class="block text-gray-700 font-medium mb-1">簽名</label>
+        <textarea
+          id="signature"
+          v-model="signature"
+          class="w-full p-3 border rounded-md focus:ring-2 focus:ring-blue-400 focus:outline-none"
+          rows="3"
+          placeholder="簽名結果"
+        ></textarea>
+      </div>
     </div>
 
-    <button
-      @click="generateKeys"
-      class="bg-blue-500 text-white p-2 rounded mb-4 w-full"
-    >
-      生成密鑰對
-    </button>
-    <button
-      @click="signMessage"
-      class="bg-green-500 text-white p-2 rounded mb-4 w-full"
-      :disabled="!privateKey"
-    >
-      簽署消息
-    </button>
-    <button
-      @click="verifySignature"
-      class="bg-purple-500 text-white p-2 rounded w-full"
-      :disabled="!signature"
-    >
-      驗證簽名
-    </button>
+    <div class="space-y-3 mt-6">
+      <button
+        @click="generateKeys"
+        class="w-full bg-blue-600 text-white p-3 rounded-lg shadow-md hover:bg-blue-700 transition-all"
+      >
+        生成密鑰對
+      </button>
 
-    <div v-if="signature" class="mt-4">
-      <p class="break-all">簽名: {{ signature }}</p>
+      <button
+        @click="signMessage"
+        class="w-full bg-green-600 text-white p-3 rounded-lg shadow-md hover:bg-green-700 transition-all"
+        :disabled="!privateKey"
+      >
+        簽署消息
+      </button>
+
+      <button
+        @click="verifySignature"
+        class="w-full bg-purple-600 text-white p-3 rounded-lg shadow-md hover:bg-purple-700 transition-all"
+        :disabled="!signature"
+      >
+        驗證簽名
+      </button>
+    </div>
+
+    <div v-if="signature" class="mt-6">
+      <p class="text-gray-700 break-all font-mono bg-gray-100 p-3 rounded-md">
+        簽名: {{ signature }}
+      </p>
     </div>
 
     <div
       v-if="verificationResult !== null"
-      :class="verificationResult ? 'text-green-500' : 'text-red-500'"
-      class="mt-2"
+      :class="verificationResult ? 'text-green-600' : 'text-red-600'"
+      class="mt-4 text-lg font-semibold"
     >
       {{ verificationResult ? '驗證成功' : '驗證失敗' }}
     </div>
   </div>
 </template>
+
 
 <script setup lang="ts">
 import { ref } from 'vue';
@@ -92,7 +136,12 @@ const verifySignature = () => {
 
   const keyv = ec.keyFromPublic(publicKey.value,"hex")
   const hexMess = sha3_384(message.value);
-  let isValid = keyv.verify(hexMess,signature.value)
+  let isValid
+  try{
+  isValid = keyv.verify(hexMess,signature.value)}
+  catch(e){
+    isValid = false
+  }
   verificationResult.value = isValid;
   //alert(isValid ? '驗證成功！' : '驗證失敗！');
 };
