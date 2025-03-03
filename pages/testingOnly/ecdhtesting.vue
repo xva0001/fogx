@@ -42,6 +42,8 @@
 
       <h2 class="text-lg font-semibold mt-4">AES with ECC Shared Key Encryption / Decryption</h2>
       <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-700">IＶ:</label>
+        <label class="block text-sm font-medium text-gray-700">{{  forge.util.encode64(iv)  }}</label>
         <label class="block text-sm font-medium text-gray-700">Message:</label>
         <input v-model="message" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm" />
         <button @click="encryptMessage"
@@ -100,7 +102,7 @@ function generateKeyPairs() {
 }
 
 
-let iv = ref()
+let iv = ref("")
 function encryptMessage() {
   iv.value = forge.random.getBytesSync(16)
   if (!message.value || !sharedKey.value) {

@@ -370,7 +370,7 @@ const toggleTheme = () => {
 
 // 在 onMounted 中添加主題初始化
 onMounted(() => {
-  if (process.client) {
+  if (import.meta.client) {
     const savedTheme = localStorage.getItem('theme') || 'light'
     isDark.value = savedTheme === 'dark'
     document.documentElement.dataset.theme = savedTheme
@@ -774,6 +774,9 @@ const handleStorySubmit = async (formData: FormData) => {
       image: URL.createObjectURL(formData.get('image') as File),
     };
 
+    // request to save the post to the server
+    // TODO:　request to save the post to the server
+
     stories.value.unshift(newStory);
   } catch (error) {
     console.error('Error creating story:', error);
@@ -803,6 +806,10 @@ const handlePostSubmit = async (formData: FormData) => {
       newComment: '',
       comments: []
     };
+
+
+    // request to save the post to the server
+    // TODO:　request to save the post to the server
 
     displayedPosts.value.unshift(newPost);
   } catch (error) {

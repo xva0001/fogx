@@ -7,6 +7,7 @@ export default defineNuxtConfig(
         viewport:"width=device-width, initial-scale=1",
         link:[{ rel: 'icon', type: 'image/x-icon', href: '/fav/fav.ico' }]
       },
+      
     },
     modules: [
       "@nuxtjs/tailwindcss",
@@ -40,6 +41,9 @@ export default defineNuxtConfig(
       
     },
     runtimeConfig:{
+
+
+      
       turnstile:{
         secretKey:import.meta.dev?"1x0000000000000000000000000000000AA": process.env.NUXT_TURNSTILE_SECRET_KEY
       },
