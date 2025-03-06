@@ -8,12 +8,13 @@ import { consola, createConsola } from "consola";
 
 export default defineNitroPlugin(async (nitroApp) => {
     if (import.meta.dev) {
-        console.log("123");
+    //    console.log("123");
         console.log("dev mode");
     }
 
     // 使用方式
     const dbNames = useAppConfig().db.conntion.conn_string_env_arr;
+    const isConnectionTestingEnabled = useAppConfig().db.stopConnectionTestingWhenStart;
     if (dbNames.length % 2 ==  0) {
         consola.info("even number of db connections");
         if (dbNames.length == 0) {
@@ -21,5 +22,10 @@ export default defineNitroPlugin(async (nitroApp) => {
             return ;
         }
     }
-    await dbConnsOpen(dbNames);
+    if (isConnectionTestingEnabled) {
+        consola.info("connection testing is disabled");
+        return
+    }else{
+
+    await dbConnsOpen(dbNames);}
 })
