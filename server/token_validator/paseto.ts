@@ -10,8 +10,8 @@ import { convertMsToSecString } from '~/shared/convertMssToSecond';
 *  openssl pkey -in private_key.pem -pubout -out public_key.pem
  */
 const appConfig = useAppConfig();
-const generatePaseto =async(patlaod:any)=>{
-    const  token = await V4.sign(patlaod,keyGetterForPaseto().private,{
+const generatePaseto =async(paylaod:any)=>{
+    const  token = await V4.sign(paylaod,keyGetterForPaseto().private,{
         expiresIn : convertMsToSecString(appConfig.verification.tokenvaildTime),
         kid : 'paseto'
     })
@@ -24,7 +24,7 @@ const verifyToken = async (token:string)=>{
 
 const verifyTokenWithBoolean = async (token:string)=>{
     try {
-        verifyToken(token)
+        await verifyToken(token)
         return true
     } catch (error) {
         return false

@@ -6,15 +6,25 @@ export default defineEventHandler(async (event) => {
     try {
         const test = await generateJWTForTesting()
         const isValid = await verifyJWTForTesting(test)
+        //const isValid_wrong = await verifyJWTForTesting(test.replace("e","2"))
+        console.log(isValid);
+        
+        if (isValid) {
+            return {
+                success: true,
+                test: test,
+                isValid: isValid
+            }
+        }
         return {
-            success: true,
-            test: test,
-            isValid: isValid
+            success: false,
+            isValid: false
         }
     } catch (e) {
         console.log(e);
         return {
-            e
+            success: false,
+            isValid: false
         }
     }
 }
