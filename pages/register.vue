@@ -270,15 +270,52 @@ function handleNextStep() {
     }
 }
 
-function handleRegister() {
+
+interface RegistrationResponse {
+    success: boolean;
+    message?: string;
+}
+
+async function handleRegister() {
     if (!verificationResult.value) {
         alert('Please complete 2FA verification first');
         return;
     }
     
     if (import.meta.dev || turnstile.value.success) {
-        alert('Account created successfully!');
-        navigateTo('/login', { replace: true });
+        try {
+            // TODO: 1. Prepare registration data (email, username, password, 2FA key, etc.).
+            const registrationData = {
+                email: email.value,
+                fullName: fullName.value,
+                username: username.value,
+                password: password.value,
+                twoFAKey: key.value,
+                backupCodes: backupCodes.value,
+                userCode:userCode.value,
+                // Add other necessary data
+            };
+
+            // TODO: 2. Send registration data to the server using $fetch.
+            const registrationResponse = await $fetch<RegistrationResponse>('/api/register', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(registrationData),
+            });
+
+            // TODO: 3. Handle the server response (success or failure).
+            if (registrationResponse.success) {
+                alert('Account created successfully!');
+                navigateTo('/login', { replace: true });
+            } else {
+                alert(`Registration failed: ${registrationResponse.message || 'Unknown error'}`);
+            }
+        } catch (error: any) {
+            console.error('Registration error:', error);
+            alert(`Registration failed: ${error.message || 'An unexpected error occurred'}`);
+        }
     }
 }
 </script>

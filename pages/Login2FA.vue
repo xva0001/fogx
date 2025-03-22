@@ -96,11 +96,31 @@ const handle2FASubmit = async () => {
         errorMessage.value = '';
 
         // Validate 2FA code
-        await loginStore.validate2FA(code.value);
+        //await loginStore.validate2FA(code.value); //
 
         // If successful, emit event to handle next step
         // You can modify this based on your store implementation
         // navigateTo('/dashboard');
+
+
+
+
+        // //Handle successful 2FA validation
+        //TODO : Update user login state based on server response
+
+        const response = await $fetch('/api/2FA/vaildator.post', {  // 2FA validation API endpoint
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ code: code.value }),
+        });
+
+        if (response.success) {
+            navigateTo('/dashboard');
+        } else {
+            errorMessage.value = response.message || 'Invalid code. Please try again.';
+        }        
     } catch (error) {
         errorMessage.value = 'Invalid code. Please try again.';
     }
