@@ -24,7 +24,7 @@ export const ecdhpubkey = ()=>{
     let publicKeyObject :{ pubkey: string, len: number, sign?: any, orgMsgHash?:any } = getKey(key) as { pubkey: string, len: number }
 
 
-    let sign_pair = new EC.ec("ed25519").keyFromPrivate(process.env.ECDSA_SIGN_PRIVATE_KEY!,"hex")
+    let sign_pair = new EC.ec("ed25519").keyFromPrivate(process.env.EDDSA_SIGN_PRIVATE_KEY!,"hex")
     let org = JSON.stringify(publicKeyObject)
     let hashMsg  = sha3_256(org)
     publicKeyObject["sign"] = sign_pair.sign(hashMsg).toDER("hex")
@@ -35,7 +35,7 @@ export const ecdhpubkey = ()=>{
 }
 
 export const ec_sign_key = ()=>{
-    let key = process.env.ECDSA_SIGN_PUBLIC_KEY
+    let key = process.env.EDDSA_SIGN_PUBLIC_KEY
     return getKey(key)
 
 }

@@ -10,7 +10,7 @@ const signObjSchema = z.object({
 export default defineEventHandler(async (event) => {
   // Load public key from environment variables
   const ec = new EC.ec("ed25519"); // Ensure curve matches your keys
-  const publicKeyHex = process.env.ECDSA_SIGN_PUBLIC_KEY;
+  const publicKeyHex = process.env.EDDSA_SIGN_PUBLIC_KEY;
   console.log(publicKeyHex);
   
   if (!publicKeyHex) {

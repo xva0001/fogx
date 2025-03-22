@@ -96,8 +96,12 @@ const goBack = () => {
 function handleLogin() {
     if (username.value && password.value && (import.meta.dev  || turnstile.value.success)) {
 
-        console.log(
-            `Logging in with:\nUsername: ${username.value}\nPassword: ${password.value}`);
+        // console.log(
+        //     `Logging in with:\nUsername: ${username.value}\nPassword: ${password.value}`);
+
+        
+
+            
     } else {
         console.log('Please fill in both fields');
     }
