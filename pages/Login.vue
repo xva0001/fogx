@@ -4,21 +4,22 @@
 
         <div :class="`shadow-lg rounded-lg p-8 w-full max-w-md ${isDark ? 'bg-gray-800' : 'bg-white'}`">
 
-            
-                <div class="flex justify-between mb-4">
-                    <button @click="goBack" class="px-3 py-1 rounded-lg border text-md flex items-center"
-                        :class="isDark ? 'bg-gray-700 text-white' : 'bg-gray-200 text-gray-800'">
-                        <Icon name="material-symbols:arrow-left-alt" class="w-5 h-5 mr-2" />
-                        Back
-                    </button>
-                </div>
-            
+
+            <div class="flex justify-between mb-4">
+                <button @click="goBack" class="px-3 py-1 rounded-lg border text-md flex items-center"
+                    :class="isDark ? 'bg-gray-700 text-white' : 'bg-gray-200 text-gray-800'">
+                    <Icon name="material-symbols:arrow-left-alt" class="w-5 h-5 mr-2" />
+                    Back
+                </button>
+            </div>
+
 
 
             <!-- Logo & Title -->
             <div class="flex flex-col items-center mb-6">
-                <NuxtImg :src="isDark?dark_logo:logo" alt="Logo" class="w-24 h-24 mb-2" :class="isDark ? 'text-white' : 'text-black'" >
-                </NuxtImg>    
+                <NuxtImg :src="isDark ? dark_logo : logo" alt="Logo" class="w-24 h-24 mb-2"
+                    :class="isDark ? 'text-white' : 'text-black'">
+                </NuxtImg>
                 <h1 class="text-2xl font-bold">Welcome Back!</h1>
                 <p class="text-sm">{{ isDark ? 'Dark Mode Enabled' : 'Light Mode Enabled' }}</p>
             </div>
@@ -72,10 +73,13 @@
 import logo from "~/assets/logo/logo.svg"
 import dark_logo from "~/assets/logo/logo_dark.svg"
 import DarkModeBtn from "~/components/DarkModeBtn.vue";
-
+import { sha3_384, sha3_256 } from "js-sha3";
+import EC from "elliptic"
+import { calSharedKey, genKeyCurve25519 } from "~/shared/useKeyFn";
+import RequestEncryption from "~/shared/Request/requestEncrytion";
 useHead({
-    title:"xva - fyp - Login Page ",
-    meta:[{name:"MsgFog login Page"}]
+    title: "xva - fyp - Login Page ",
+    meta: [{ name: "MsgFog login Page" }]
 })
 
 const turnstile = ref()
@@ -93,15 +97,48 @@ const goBack = () => {
 }
 
 // 登入邏輯
-function handleLogin() {
-    if (username.value && password.value && (import.meta.dev  || turnstile.value.success)) {
+async function handleLogin() {
+    if (username.value && password.value && (import.meta.dev || turnstile.value.success)) {
 
         // console.log(
         //     `Logging in with:\nUsername: ${username.value}\nPassword: ${password.value}`);
+        let packet = {
+            hash3_256_password: sha3_256(password.value),
+            hash384_password: sha3_384(password.value),
+            requestTime : new Date().toISOString(),
+        };
 
+        // 檢查 username.value 是否包含 @ 並且不是開頭或結尾
+        const name = username.value.trim();
+        const atIndex = name.indexOf('@');
+
+        const isEmail = atIndex > 0 && atIndex < name.length - 1;
+
+        if (isEmail) {
+            packet.email = name;
+        } else {
+            packet.username = name;
+        }
+
+        let servPubKey = await $fetch("/api/ECDHpubkey")
+        //gen key
+        let pair = genKeyCurve25519()
+        //calculate shared key
+        let shared = calSharedKey(servPubKey.pubkey, pair.getPrivate("hex"))
+
+        console.log(shared);
+
+        let encrypt = await RequestEncryption.encryptMessage(JSON.stringify(packet), shared)
+
+        encrypt["pubkey"] = pair.getPublic("hex")
+
+        //console.log(encrypt);
         
+        // //it is request
 
-            
+        //TODO : call api if pass next is otp else fail 
+
+
     } else {
         console.log('Please fill in both fields');
     }
