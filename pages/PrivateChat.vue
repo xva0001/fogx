@@ -148,7 +148,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick  } from 'vue'
 import { 
   ArrowLeft,
   Search,
@@ -242,7 +242,14 @@ const showAddContact = () => {
 
 const selectFriend = async (friend: Friend) => {
   selectedFriend.value = friend
-  messages.value = await fetchMessages(friend.id)
+  try {
+      // TODO: 1. Fetch messages from API instead of mock data using $fetch.
+      const response = await $fetch<Message[]>(`/api/messages/${friend.id}`);
+      messages.value = response || mockConversations[friend.id] || []; // 使用 API 數據或假數據
+  } catch (error) {
+      console.error("Failed to fetch messages from API:", error);
+      messages.value = mockConversations[friend.id] || []; // 使用假數據
+  }
   await nextTick()
   scrollToBottom()
 }
@@ -273,10 +280,20 @@ const sendMessage = async () => {
   scrollToBottom()
 
   // Simulate API call
-  await sendMessageToAPI(selectedFriend.value.id, {
-    content,
-    time
-  })
+  // TODO: 2. Send message to API using $fetch.
+  try {
+      await $fetch('/api/sendMessage', { //Not yet finished
+          method: 'POST',
+          body: {
+              friendId: selectedFriend.value.id,
+              content: content,
+              time: time
+          }
+      });
+  } catch (error) {
+      console.error("Failed to send message to API:", error);
+      // Handle the error appropriately (e.g., display an error message)
+  }
 }
 /*
 const sendMessage = () => {
@@ -497,7 +514,7 @@ const scrollToBottom = () => {
   }
 }
 
-// Mock API calls
+/* Mock API calls
 const fetchMessages = async (friendId: number) => {
   await new Promise(resolve => setTimeout(resolve, 300))
   return mockConversations[friendId] || []
@@ -507,6 +524,7 @@ const sendMessageToAPI = async (friendId: number, message: {content: string, tim
   await new Promise(resolve => setTimeout(resolve, 300))
   console.log('Message sent:', {friendId, message})
 }
+*/
 
 // Lifecycle hooks
 onMounted(() => {
