@@ -37,8 +37,24 @@ export default defineNuxtConfig(
     icon:{
       serverBundle:"remote"
     },
+    vite:{
+      optimizeDeps:{
+        esbuildOptions:{
+          loader:{
+            ".ts":"ts"
+          }
+        }
+      }
+    },
     nitro:{
-      
+      rollupConfig:{
+        
+      }  
+    },
+    
+
+    build:{
+      "transpile" : ["easy-shamir-secret-sharing"]
     },
     runtimeConfig:{
 

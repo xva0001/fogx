@@ -103,7 +103,7 @@
                                 :class="isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'"
                             />
                             <button 
-                                @click="verifyCode" 
+                                @click.prevent="verifyCode" 
                                 class="px-3 py-2 bg-blue-500 text-white rounded text-sm hover:bg-blue-600"
                             >
                                 Verify
@@ -230,7 +230,6 @@ onMounted(async () => {
 
 const verifyCode = () => {
     if (!userCode.value) return;
-    
     const currentCounter = Math.floor(Date.now() / 1000 / 30);
     verificationResult.value = $TOTPvalidator.validator(
         key.value,
@@ -324,17 +323,13 @@ async function handleRegister() {
             });
 
             console.log(registrationResponse);
-            
-            return
-
-
 
             // TODO: 3. Handle the server response (success or failure).
-            if (registrationResponse.success) {
+            if ('success' in registrationResponse && registrationResponse.success) {
                 alert('Account created successfully!');
                 navigateTo('/login', { replace: true });
             } else {
-                alert(`Registration failed: ${registrationResponse.message || 'Unknown error'}`);
+                alert(`Registration failed: ${registrationResponse || 'Unknown error'}`);
             }
         } catch (error: any) {
             console.error('Registration error:', error);

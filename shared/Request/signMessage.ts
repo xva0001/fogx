@@ -1,4 +1,6 @@
-import { sha3_256 } from 'js-sha3';
+import pkg from "js-sha3"
+
+const {sha3_256, sha3_384} = pkg
 
 import EC from "elliptic"
 

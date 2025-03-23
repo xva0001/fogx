@@ -7,7 +7,7 @@ const MONGO_OPTIONS: ConnectOptions = {
     strict: true,
     deprecationErrors: true,
   },
-  connectTimeoutMS: 10_000,
+  connectTimeoutMS: 1_000,
 };
 
 /**
@@ -37,18 +37,19 @@ export const mongoDBConn = async (uri: string): Promise<Connection> => {
 export const createDBConnection = async (envKey: string): Promise<Connection> => {
   const uri = process.env[envKey];//get env 
   console.log(uri);
-  
   if (!uri) {
     throw new Error(`Environment variable "${envKey}" is undefined.`);
   }
   return await mongoDBConn(uri);
 };
 
+
+let dbConnections : mongoose.Connection[] = [];
 /**
  * 平行初始化多個資料庫連線
  */
 export const dbConnsOpen = async (dbNames: string[]): Promise<void> => {
-  const dbConnections = [];
+  
 
   try {
     for (const name of dbNames) {
@@ -69,3 +70,19 @@ export const dbConnsOpen = async (dbNames: string[]): Promise<void> => {
   }
 };
 
+export const dbConnsClose = async (): Promise<void> => {
+  try {
+    for (const db of dbConnections) {
+      await db.close();
+      console.log(`Closed connection to ${db.name}`);
+    }
+    console.log("All MongoDB connections are closed");
+
+    // 清空 dbConnections 陣列
+    dbConnections = [];
+  } catch (error) {
+    console.error('Error closing database connections:', error);
+  }
+};
+
+export const getAllConns = () =>{return dbConnections}

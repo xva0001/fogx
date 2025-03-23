@@ -1,5 +1,8 @@
 import forge from 'node-forge';
-import { sha3_384 } from 'js-sha3';
+import pkg from "js-sha3"
+
+const {sha3_256, sha3_384} = pkg
+
 class RequestEncryption {
   private static keySize = 32;
   
