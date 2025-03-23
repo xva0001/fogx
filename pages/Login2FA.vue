@@ -126,31 +126,4 @@ const handle2FASubmit = async () => {
     }
 };
 
-// // Resend code functionality
-// const resetCode = () => {
-//     // Implement resend logic here
-//     // This should trigger your backend to send a new 2FA code
-//     startCountdown();
-// };
-
-// // Start countdown
-// const startCountdown = () => {
-//     countdown.value = 30;
-//     clearInterval(countdownInterval.value);
-//     countdownInterval.value = setInterval(() => {
-//         countdown.value -= 1;
-//         if (countdown.value <= 0) {
-//             clearInterval(countdownInterval.value);
-//             code.value = ''; // Clear input after countdown ends
-//         }
-//         if (countdown.value==0) {
-//             countdown.value= 30 //reset
-//         }
-//     }, 1000);
-// };
-
-// // Initialize countdown on component mount
-// onMounted(() => {
-//     startCountdown();
-// });
 </script>

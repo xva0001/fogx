@@ -69,7 +69,7 @@
     </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import logo from "~/assets/logo/logo.svg"
 import dark_logo from "~/assets/logo/logo_dark.svg"
 import DarkModeBtn from "~/components/DarkModeBtn.vue";
@@ -102,7 +102,7 @@ async function handleLogin() {
 
         // console.log(
         //     `Logging in with:\nUsername: ${username.value}\nPassword: ${password.value}`);
-        let packet = {
+        let packet : any = {
             hash3_256_password: sha3_256(password.value),
             hash384_password: sha3_384(password.value),
             requestTime : new Date().toISOString(),
@@ -126,13 +126,15 @@ async function handleLogin() {
         //calculate shared key
         let shared = calSharedKey(servPubKey.pubkey, pair.getPrivate("hex"))
 
-        console.log(shared);
+//        console.log(shared);
 
-        let encrypt = await RequestEncryption.encryptMessage(JSON.stringify(packet), shared)
+        let encrypt : any = await RequestEncryption.encryptMessage(JSON.stringify(packet), shared)
 
         encrypt["pubkey"] = pair.getPublic("hex")
 
-        //console.log(encrypt);
+        console.log(encrypt);
+
+        sessionStorage.setItem("pri",pair.getPrivate("hex"))
         
         // //it is request
 

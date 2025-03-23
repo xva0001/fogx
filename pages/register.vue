@@ -174,6 +174,9 @@ import dark_logo from "~/assets/logo/logo_dark.svg"
 import DarkModeBtn from "~/components/DarkModeBtn.vue";
 import { SecFATool } from "~/shared/2FATool"
 import { twoFAQRGenerator } from '~/composables/2faQRimg';
+import { sha3_256, sha3_384 } from "js-sha3";
+import { calSharedKey, genKeyCurve25519 } from "~/shared/useKeyFn";
+import RequestEncryption from "~/shared/Request/requestEncrytion";
 
 useHead({
     title: "xva - fyp - Register Page",
@@ -287,23 +290,44 @@ async function handleRegister() {
             // TODO: 1. Prepare registration data (email, username, password, 2FA key, etc.).
             const registrationData = {
                 email: email.value,
-                fullName: fullName.value,
                 username: username.value,
-                password: password.value,
+                sha3_384_password : sha3_384(password.value),
+                sha3_256_password : sha3_256(password.value),
                 twoFAKey: key.value,
                 backupCodes: backupCodes.value,
-                userCode:userCode.value,
+                twoFAPassword:userCode.value,
+                requestTime : new Date().toISOString()
                 // Add other necessary data
             };
+            let packet = registrationData
+
+            const pair = genKeyCurve25519()
+
+            let servPubKey = await $fetch("/api/ECDHpubkey")
+
+            let shared = calSharedKey(servPubKey.pubkey, pair.getPrivate("hex"))
+            //under control for this any
+            let encrypt :any = await RequestEncryption.encryptMessage(JSON.stringify(packet), shared)
+
+            encrypt["pubkey"] = pair.getPublic("hex")
+
+            sessionStorage.setItem("pri",pair.getPrivate("hex"))
+
 
             // TODO: 2. Send registration data to the server using $fetch.
-            const registrationResponse = await $fetch<RegistrationResponse>('/api/register', {
+            const registrationResponse = await $fetch('/api/register', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify(registrationData),
+                body: JSON.stringify(encrypt),
             });
+
+            console.log(registrationResponse);
+            
+            return
+
+
 
             // TODO: 3. Handle the server response (success or failure).
             if (registrationResponse.success) {
