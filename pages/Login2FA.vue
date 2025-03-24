@@ -31,7 +31,7 @@
                 <!-- 2FA Code Input -->
                 <div>
                     <label for="2fa-code" class="block mb-1">Enter 6-digit code</label>
-                    <input v-model="code" id="2fa-code" type="number" placeholder="••••••"
+                    <input v-model="code" id="2fa-code" type="text" placeholder="••••••"
                         class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                         :class="isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'"
                         required
@@ -49,8 +49,7 @@
                     :class="isDark ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'">
                     Verify
                 </button>
-<!-- 
-                !-- Countdown Timer --
+                <!-- Countdown Timer --
                 <div class="text-center text-sm">
                     <p v-if="countdown > 0">
                         Reset code in {{ countdown }} seconds
@@ -95,8 +94,14 @@ const handle2FASubmit = async () => {
         // Clear error message
         errorMessage.value = '';
 
+        const CUUID = localStorage.getItem('CUUID');
+        if (!CUUID) {
+            errorMessage.value = 'User identifier not found. Please login again.';
+            return;
+        }
+
         // Validate 2FA code
-        //await loginStore.validate2FA(code.value); //
+        await loginStore.validate2FA(code.value); //
 
         // If successful, emit event to handle next step
         // You can modify this based on your store implementation
@@ -113,11 +118,12 @@ const handle2FASubmit = async () => {
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ code: code.value }),
+            body: JSON.stringify({ code: code.value, CUUID}),
         });
 
         if (response.success) {
-            navigateTo('/dashboard');
+            localStorage.setItem('authToken', response.authToken);
+            navigateTo('/main');
         } else {
             errorMessage.value = response.message || 'Invalid code. Please try again.';
         }        
