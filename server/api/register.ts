@@ -144,15 +144,28 @@ export default defineEventHandler(async (event) => {
                     objSign: "",  // 先佔位
                 };
 
+
+                let string_packet = JSON.stringify(db_packet) 
+                let org = sha3_256(string_packet)
                 // 現在才產生 hash/sign，確保型別不會爆炸
-                db_packet.objHash = sha3_256(JSON.stringify(db_packet));
+                db_packet.objHash = org;
                 db_packet.objSign = await SignMessage.sign(
                     process.env.EDDSA_SIGN_PRIVATE_KEY!,
-                    JSON.stringify(db_packet)
+                    string_packet
                 ).then(result => result.mess);
                 let isValid_sign =false
-
                 isValid_sign = SignMessage.verify(process.env.EDDSA_SIGN_PUBLIC_KEY!,db_packet.objSign,String(db_packet.objHash))
+                if (isValid_sign==false) {
+                    // console.log("sha3_256 (obj) : ", db_packet.objHash);
+                    // console.log("sha3_256 (org) : ", org);
+
+                    // console.log("obj == org ? ", db_packet.objHash==org);
+                    
+                    
+                    // console.log("error : ", db_packet.objSign);
+                    // console.log("error : ",String(db_packet.objHash));                    
+                    return createError("sign err ")
+                }
                 
                 console.log(isValid_sign);
                 

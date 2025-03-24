@@ -41,8 +41,7 @@ class SignMessage{
         let isValid  = true ;
         try {
             isValid = key.verify(hash,signedMsg)
-            console.log("from sign msg",isValid);
-            
+            console.log("from sign msg : ",isValid);
         } catch (error) {
             console.log(error);
             isValid = false
