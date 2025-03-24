@@ -77,6 +77,7 @@ import { sha3_384, sha3_256 } from "js-sha3";
 import EC from "elliptic"
 import { calSharedKey, genKeyCurve25519 } from "~/shared/useKeyFn";
 import RequestEncryption from "~/shared/Request/requestEncrytion";
+import type { EncryptedRes } from "~/shared/Request/IEncryptRes";
 useHead({
     title: "xva - fyp - Login Page ",
     meta: [{ name: "MsgFog login Page" }]
@@ -137,7 +138,7 @@ async function handleLogin() {
         sessionStorage.setItem("pri", pair.getPrivate("hex"))
 
 
-        const req = await $fetch("/api/login", {
+        const req : EncryptedRes | any = await $fetch("/api/login", {
             method: "POST",
             headers: {
                 'Content-Type': 'application/json',
@@ -148,6 +149,14 @@ async function handleLogin() {
         console.log(
             req
         );
+
+
+        let d_res
+        if (req.success) {
+            d_res = await RequestEncryption.decryptMessage(req.encryptedMessage,shared,req.iv)
+            console.log(JSON.parse(d_res));           
+
+        }
         
         // //it is request
 
