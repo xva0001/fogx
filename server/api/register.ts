@@ -47,6 +47,10 @@ export default defineEventHandler(async (event) => {
             return InvalidError()
         }
 
+        if (d_rq.data.username.length < 4 || d_rq.data.username.length > 40 ) {
+            return createError("username is not allowed. length must >= 4 and  < 40" )
+        }
+
         let uuid = uuidv4Generate()
 
         const dbNames = useAppConfig().db.conntion.conn_string_env_arr;
@@ -104,7 +108,6 @@ export default defineEventHandler(async (event) => {
 
         console.log("testing");
 
-
         let date = new Date()
 
         async function input(data: IUser[]) :Promise<number> {
@@ -147,6 +150,13 @@ export default defineEventHandler(async (event) => {
                     process.env.EDDSA_SIGN_PRIVATE_KEY!,
                     JSON.stringify(db_packet)
                 ).then(result => result.mess);
+                let isValid_sign =false
+
+                isValid_sign = SignMessage.verify(process.env.EDDSA_SIGN_PUBLIC_KEY!,db_packet.objSign,String(db_packet.objHash))
+                
+                console.log(isValid_sign);
+                
+
                 arr_packet.push(db_packet)
 
             }

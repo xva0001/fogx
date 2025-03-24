@@ -102,10 +102,10 @@ async function handleLogin() {
 
         // console.log(
         //     `Logging in with:\nUsername: ${username.value}\nPassword: ${password.value}`);
-        let packet : any = {
+        let packet: any = {
             hash3_256_password: sha3_256(password.value),
             hash384_password: sha3_384(password.value),
-            requestTime : new Date().toISOString(),
+            requestTime: new Date().toISOString(),
         };
 
         // 檢查 username.value 是否包含 @ 並且不是開頭或結尾
@@ -126,15 +126,28 @@ async function handleLogin() {
         //calculate shared key
         let shared = calSharedKey(servPubKey.pubkey, pair.getPrivate("hex"))
 
-//        console.log(shared);
+        //        console.log(shared);
 
-        let encrypt : any = await RequestEncryption.encryptMessage(JSON.stringify(packet), shared)
+        let encrypt: any = await RequestEncryption.encryptMessage(JSON.stringify(packet), shared)
 
         encrypt["pubkey"] = pair.getPublic("hex")
 
         console.log(encrypt);
 
-        sessionStorage.setItem("pri",pair.getPrivate("hex"))
+        sessionStorage.setItem("pri", pair.getPrivate("hex"))
+
+
+        const req = await $fetch("/api/login", {
+            method: "POST",
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(encrypt)
+        })
+
+        console.log(
+            req
+        );
         
         // //it is request
 

@@ -36,16 +36,15 @@ class SignMessage{
      * @returns {Promise<boolean>} 
      *   A promise that resolves to true if the signature is valid, false otherwise
      */
-    static async verify(pubkey:string,signedMsg:string,hash:string) : Promise<boolean>{
-
+    static verify(pubkey:string,signedMsg:string,hash:string) : boolean{
         let key = new EC.ec("ed25519").keyFromPublic(pubkey, 'hex' )
-        let isValid ;
-
+        let isValid  = true ;
         try {
-            
             isValid = key.verify(hash,signedMsg)
-
+            console.log("from sign msg",isValid);
+            
         } catch (error) {
+            console.log(error);
             isValid = false
         }
         return isValid

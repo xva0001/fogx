@@ -33,9 +33,9 @@ export const ILoginRequestSchemaVaildatorRequestObj_without_otp = z.object({
     requestTime: z.string().datetime({ offset: true }),
 }).refine(
     (data) =>
-        (data.email && !data.username) || (!data.email && data.username),
+        (data.email && !data.username) || (!data.email && data.username)  ,
     {
-        message: "Provide either email or username, not both or neither",
+        message: "Provide either email or username",
         path: ['email'], // 可選擇放在 ['username'] 視你要 error 出現在哪
     }
 )
