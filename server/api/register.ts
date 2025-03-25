@@ -7,11 +7,12 @@ import RequestEncryption from "~/shared/Request/requestEncrytion"
 import { v4 as uuidv4Generate } from "uuid"
 import { secrets } from 'easy-shamir-secret-sharing';
 import { getSharePartNum, getThreshold } from "../utils/getShareSettings"
-import { IUser, User, userSchema } from "../db_data_schema/UserSchema"
+import { IUser, IUser_Hash, User, userSchema } from "../db_data_schema/UserSchema"
 import pkg from "js-sha3"
 const { sha3_256, sha3_384 } = pkg
 import SignMessage from "~/shared/Request/signMessage"
 import mongoose from "mongoose"
+import { MongoDBConnector } from "../utils/mongodbConn"
 
 export default defineEventHandler(async (event) => {
 
@@ -24,6 +25,8 @@ export default defineEventHandler(async (event) => {
 
 
     const req = EncryptReqShema.safeParse(body)
+
+    const dbConnector : MongoDBConnector = new MongoDBConnector()
 
     if (!req.success) {
 
@@ -55,8 +58,15 @@ export default defineEventHandler(async (event) => {
 
         const dbNames = useAppConfig().db.conntion.conn_string_env_arr;
 
-        await dbConnsOpen(dbNames)
+        //db control
+        //await dbConnsOpen(dbNames)
+        await dbConnector.dbConnsOpen(dbNames)
 
+        //override export
+        function getAllConns(){
+            return dbConnector.getDbConnections()
+        }
+        //
 
         let connNum = getAllConns().length
 
@@ -71,6 +81,21 @@ export default defineEventHandler(async (event) => {
         }
         //default 3,2
         const share_arr_for_2fa_key = await secrets.share(d_rq.data.twoFAKey, getSharePartNum(), getThreshold())
+
+        const combine = await secrets.combine(share_arr_for_2fa_key)
+
+        try {
+            if(!(sha3_256(d_rq.data.twoFAKey)==sha3_256(combine))){
+                throw createError("msg splited failed")
+            }
+        } catch (error) {
+            
+            return {
+                success : false,
+                message : "msg  splite failed"
+            }
+
+        }
 
         //console.log(share_arr_for_2fa_key);
 
@@ -110,17 +135,15 @@ export default defineEventHandler(async (event) => {
 
         let date = new Date()
 
-        async function input(data: IUser[]) :Promise<number> {
-            let counter = 0;
-            await Promise.all(getAllConns().map(async (conn) => {
-                const user = conn.model("user", userSchema)
-                const newUser = new user(data[counter])
-                await newUser.save()
+        async function input(data: IUser[]): Promise<number> {
+            await Promise.all(getAllConns().map(async (conn, index) => {
+                const user = conn.model("user", userSchema);
+                const newUser = new user(data[index]);
+                await newUser.save();
                 console.log("new user");
-                counter++
-            }))
-            return counter
-        }
+            }));
+            return data.length;
+        }        
         console.log("testing2");
         console.log(share_arr_for_2fa_key.length);
         let InsertedCounter = 0;
@@ -143,45 +166,33 @@ export default defineEventHandler(async (event) => {
                     objHash: "",  // 先佔位
                     objSign: "",  // 先佔位
                 };
-
-
-                let string_packet = JSON.stringify(db_packet) 
+                const cleanPacket : IUser_Hash = { ...db_packet, objHash: String(db_packet.objHash) as string }; //淺copy
+                delete cleanPacket.updatedDate;
+                ///const hash = sha3_256(JSON.stringify(cleanPacket));
+                let string_packet = JSON.stringify(cleanPacket)
                 let org = sha3_256(string_packet)
                 // 現在才產生 hash/sign，確保型別不會爆炸
                 db_packet.objHash = org;
                 db_packet.objSign = await SignMessage.sign(
                     process.env.EDDSA_SIGN_PRIVATE_KEY!,
-                    string_packet
+                    string_packet                          //sign include sha3_256
                 ).then(result => result.mess);
                 let isValid_sign =false
                 isValid_sign = SignMessage.verify(process.env.EDDSA_SIGN_PUBLIC_KEY!,db_packet.objSign,String(db_packet.objHash))
-                if (isValid_sign==false) {
-                    // console.log("sha3_256 (obj) : ", db_packet.objHash);
-                    // console.log("sha3_256 (org) : ", org);
-
-                    // console.log("obj == org ? ", db_packet.objHash==org);
-                    
-                    
-                    // console.log("error : ", db_packet.objSign);
-                    // console.log("error : ",String(db_packet.objHash));                    
+                if (isValid_sign==false) {                   
                     return createError("sign err ")
                 }
-                
                 console.log(isValid_sign);
-                
-
                 arr_packet.push(db_packet)
-
             }
             try {
                 InsertedCounter = await input(arr_packet);
-                
-                
-
             } catch (e) {
                 console.log("user : register : err", e);
             }
-
+            // return {
+            //     success : false
+            // }
             console.log("threshold : ", getThreshold());
 
             if (InsertedCounter >= getThreshold()) {
@@ -207,8 +218,6 @@ export default defineEventHandler(async (event) => {
             console.log("unexpected error during insertion", error);
             response.success = false
         }
-        await dbConnsClose();
-
         return response
 
     } catch (error) {
@@ -219,6 +228,6 @@ export default defineEventHandler(async (event) => {
     }
 
     finally {
-        await dbConnsClose()
+        await dbConnector.dbConnsClose()
     }
 })

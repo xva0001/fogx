@@ -27,6 +27,7 @@
     "@types/qr-image": "^3.2.9",
     "@types/qrcode": "^1.5.5",
     "aes-js": "^3.1.2",
+    "async-mutex": "^0.5.0",
     "consola": "^3.4.0",
     "easy-shamir-secret-sharing": "^1.0.10",
     "elliptic": "^6.6.1",

@@ -23,7 +23,20 @@ export interface IUser {
     objSign :string
 
 }
-
+export interface IUser_Hash {
+    CUUID: string;
+    Email: string;
+    sha3_256: string;
+    sha3_384: string;
+    createdDate: Date;
+    updatedDate?: Date; // Made optional //no hash水木水木
+    lastestLoginDate: Date;
+    keyOf2FA: string;
+    backupCode: string[];
+    username: string;
+    objHash: string;
+    objSign: string;
+}
 const regex_sha256 = /^[a-fA-F0-9$]{64}$/;
 const regex_sha384 = /^[a-fA-F0-9$]{96}$/;
 const userSchema = new Schema<IUser>({
