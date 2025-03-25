@@ -78,6 +78,8 @@ import EC from "elliptic"
 import { calSharedKey, genKeyCurve25519 } from "~/shared/useKeyFn";
 import RequestEncryption from "~/shared/Request/requestEncrytion";
 import type { EncryptedRes } from "~/shared/Request/IEncryptRes";
+import { jwtVerify } from "jose";
+
 useHead({
     title: "xva - fyp - Login Page ",
     meta: [{ name: "MsgFog login Page" }]
@@ -137,32 +139,43 @@ async function handleLogin() {
 
         sessionStorage.setItem("pri", pair.getPrivate("hex"))
 
+        try {
+            const req : EncryptedRes | any = await $fetch("/api/login", {
+                method: "POST",
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(encrypt)
+            })
 
-        const req : EncryptedRes | any = await $fetch("/api/login", {
-            method: "POST",
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(encrypt)
-        })
+            console.log(
+                req
+            );
 
-        console.log(
-            req
-        );
-
-
-        let d_res
-        if (req.success) {
-            d_res = await RequestEncryption.decryptMessage(req.encryptedMessage,shared,req.iv)
-            console.log(JSON.parse(d_res));           
-
+            let d_res
+            if (req && req.success) {
+                d_res = await RequestEncryption.decryptMessage(req.encryptedMessage,shared,req.iv)
+                console.log(d_res);
+                const decodeRes = JSON.parse(d_res);
+                console.log(decodeRes.CUUID);
+                sessionStorage.setItem('CUUID', decodeRes.CUUID);
+                console.log("jwt",decodeRes.jwt);                
+                sessionStorage.setItem("jwt",decodeRes.jwt)
+                console.log("paseto",decodeRes.paseto);
+                sessionStorage.setItem("paseto",decodeRes.paseto)
+                navigateTo("/Login2FA", { replace: true });
+            } else {
+                console.error("Login failed");
+                alert("Login failed");                  
+            }
+        } catch (error: any) {
+            console.error("Login error:", error);
+            console.log(`Login fail \n something is wrong`, error);
+            alert(`Login failed \n something is wrong:`);
         }
-        
         // //it is request
 
         //TODO : call api if pass next is otp else fail 
-
-
     } else {
         console.log('Please fill in both fields');
     }

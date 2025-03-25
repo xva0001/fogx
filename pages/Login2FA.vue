@@ -31,7 +31,7 @@
                 <!-- 2FA Code Input -->
                 <div>
                     <label for="2fa-code" class="block mb-1">Enter 6-digit code</label>
-                    <input v-model="code" id="2fa-code" type="number" placeholder="••••••"
+                    <input v-model="code" id="2fa-code" type="text" placeholder="••••••"
                         class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                         :class="isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'"
                         required
@@ -49,8 +49,7 @@
                     :class="isDark ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'">
                     Verify
                 </button>
-<!-- 
-                !-- Countdown Timer --
+                <!-- Countdown Timer --
                 <div class="text-center text-sm">
                     <p v-if="countdown > 0">
                         Reset code in {{ countdown }} seconds
@@ -61,7 +60,8 @@
     </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
+//need to define middleware
 import { ref, onMounted } from 'vue';
 import logo from "~/assets/logo/logo.svg"
 import dark_logo from "~/assets/logo/logo_dark.svg"
@@ -87,6 +87,15 @@ const goBack = () => {
 // Handle 2FA submission
 const handle2FASubmit = async () => {
     try {
+
+        const  jwt = sessionStorage.getItem("jwt")
+        const paseto = sessionStorage.getItem("paseto")
+        console.log(jwt);
+        console.log(paseto);
+
+                
+        
+
         if (code.value.length !== 6) {
             errorMessage.value = 'Please enter a 6-digit code';
             return;
@@ -94,6 +103,14 @@ const handle2FASubmit = async () => {
 
         // Clear error message
         errorMessage.value = '';
+
+        const CUUID = sessionStorage.getItem('CUUID');
+        console.log(CUUID);
+        
+        if (!CUUID) {
+            errorMessage.value = 'User identifier not found. Please login again.';
+            return;
+        }
 
         // Validate 2FA code
         //await loginStore.validate2FA(code.value); //
@@ -103,27 +120,28 @@ const handle2FASubmit = async () => {
         // navigateTo('/dashboard');
 
 
-
-
         // //Handle successful 2FA validation
         //TODO : Update user login state based on server response
 
-        const response = await $fetch('/api/2FA/vaildator.post', {  // 2FA validation API endpoint
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ code: code.value }),
-        });
+        // const response = await $fetch('/api/2FA/vaildator.post', {  // 2FA validation API endpoint
+        //     method: 'POST',
+        //     headers: {
+        //         'Content-Type': 'application/json',
+        //     },
+        //     body: JSON.stringify({ code: code.value, CUUID}),
+        // });
 
-        if (response.success) {
-            navigateTo('/dashboard');
-        } else {
-            errorMessage.value = response.message || 'Invalid code. Please try again.';
-        }        
+        // if (response.success) {
+        //     localStorage.setItem('authToken', response.authToken);
+        //     navigateTo('/main');
+        // } else {
+        //     errorMessage.value = response.message || 'Invalid code. Please try again.';
+        // }        
     } catch (error) {
         errorMessage.value = 'Invalid code. Please try again.';
     }
 };
+
+
 
 </script>
