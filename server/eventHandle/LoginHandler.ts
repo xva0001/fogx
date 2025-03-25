@@ -154,41 +154,52 @@ export const loginEvent = async (event: H3Event) => {
                             throw new Error("Invalid EC key: pubkey is missing");
                         }
                         let orgVerify = sha3_256(JSON.stringify(db_data_verify_packet)) == user.objHash
-                        console.log("constructor hash : ",sha3_256(JSON.stringify(db_data_verify_packet)))
-                        console.log("Hash : ",orgVerify);
-                        console.log("user hash :",user.objHash);
-                        
+                        console.log("constructor hash : ", sha3_256(JSON.stringify(db_data_verify_packet)))
+                        console.log("Hash : ", orgVerify);
+                        console.log("user hash :", user.objHash);
+
                         verify = SignMessage.verify(ecKey.pubkey, String(user.objSign), String(user.objHash));
                     } catch (e) {
                         console.log("sign Err", e);
                     }
-
-
                     try {
                         matchCount++;
                         userArr.push(user);
                         if (verify === false) {
                             problemInt.push(userArr.length - 1);
                             countError++;
+
+
+
+
                         } else {
                             id = user.CUUID;
                         }
                     } finally {
                         release();
                     }
-                }
+                }           
             }));
 
             return { matchCount, id, countError, userArr, problemInt };
         }
+
+
+
+
         let uid
         try {
             let id: string = isUsername ? d_rq.data.username! : d_rq.data.email!;
             if (!id) {
                 throw new Error("Username or email is undefined");
             }
-
-            uid = (await loginCompare(id, d_rq.data.hash3_256_password, d_rq.data.hash384_password, isUsername)).id
+            
+            
+            let res = await loginCompare(id, d_rq.data.hash3_256_password, d_rq.data.hash384_password, isUsername)
+            //todo : fix error by db, let output the correct IUser
+            //CALL DATAfIXER
+            //UPDATE ORGIN DATA
+            uid = res.id
 
             console.log(uid);
 
