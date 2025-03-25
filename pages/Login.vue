@@ -78,6 +78,7 @@ import EC from "elliptic"
 import { calSharedKey, genKeyCurve25519 } from "~/shared/useKeyFn";
 import RequestEncryption from "~/shared/Request/requestEncrytion";
 import type { EncryptedRes } from "~/shared/Request/IEncryptRes";
+import { jwtVerify } from "jose";
 
 useHead({
     title: "xva - fyp - Login Page ",
@@ -155,14 +156,13 @@ async function handleLogin() {
             if (req && req.success) {
                 d_res = await RequestEncryption.decryptMessage(req.encryptedMessage,shared,req.iv)
                 console.log(d_res);
-                const decodedPayload = JSON.parse(d_res);
-
-                console.log( decodedPayload.CUUID);
-                console.log( localStorage.getItem("CUUID"));
-                console.log("Login Success");
-
-                localStorage.setItem('CUUID', decodedPayload.CUUID);
-                
+                const decodeRes = JSON.parse(d_res);
+                console.log(decodeRes.CUUID);
+                sessionStorage.setItem('CUUID', decodeRes.CUUID);
+                console.log("jwt",decodeRes.jwt);                
+                sessionStorage.setItem("jwt",decodeRes.jwt)
+                console.log("paseto",decodeRes.paseto);
+                sessionStorage.setItem("paseto",decodeRes.paseto)
                 navigateTo("/Login2FA", { replace: true });
             } else {
                 console.error("Login failed");

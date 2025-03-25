@@ -206,14 +206,11 @@ export const loginEvent = async (event: H3Event) => {
             }
             
         }
-     
-        //sign two token 
-
-
         try {
             let response :any = {}
             response["jwt"] = await generateJWT({CUUID:uid,login:"initial"})
             response["paseto"] = await generatePaseto({CUUID:uid,login:"initial"})
+            response["CUUID"] = uid
             let EncryptedRes = await RequestEncryption.encryptMessage(JSON.stringify(response),shared)
             let encryptResponse :EncryptedRes = {
                 iv : EncryptedRes.iv,

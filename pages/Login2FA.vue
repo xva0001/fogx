@@ -60,7 +60,8 @@
     </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
+//need to define middleware
 import { ref, onMounted } from 'vue';
 import logo from "~/assets/logo/logo.svg"
 import dark_logo from "~/assets/logo/logo_dark.svg"
@@ -86,6 +87,15 @@ const goBack = () => {
 // Handle 2FA submission
 const handle2FASubmit = async () => {
     try {
+
+        const  jwt = sessionStorage.getItem("jwt")
+        const paseto = sessionStorage.getItem("paseto")
+        console.log(jwt);
+        console.log(paseto);
+
+                
+        
+
         if (code.value.length !== 6) {
             errorMessage.value = 'Please enter a 6-digit code';
             return;
@@ -94,42 +104,44 @@ const handle2FASubmit = async () => {
         // Clear error message
         errorMessage.value = '';
 
-        const CUUID = localStorage.getItem('CUUID');
+        const CUUID = sessionStorage.getItem('CUUID');
+        console.log(CUUID);
+        
         if (!CUUID) {
             errorMessage.value = 'User identifier not found. Please login again.';
             return;
         }
 
         // Validate 2FA code
-        await loginStore.validate2FA(code.value); //
+        //await loginStore.validate2FA(code.value); //
 
         // If successful, emit event to handle next step
         // You can modify this based on your store implementation
         // navigateTo('/dashboard');
 
 
-
-
         // //Handle successful 2FA validation
         //TODO : Update user login state based on server response
 
-        const response = await $fetch('/api/2FA/vaildator.post', {  // 2FA validation API endpoint
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ code: code.value, CUUID}),
-        });
+        // const response = await $fetch('/api/2FA/vaildator.post', {  // 2FA validation API endpoint
+        //     method: 'POST',
+        //     headers: {
+        //         'Content-Type': 'application/json',
+        //     },
+        //     body: JSON.stringify({ code: code.value, CUUID}),
+        // });
 
-        if (response.success) {
-            localStorage.setItem('authToken', response.authToken);
-            navigateTo('/main');
-        } else {
-            errorMessage.value = response.message || 'Invalid code. Please try again.';
-        }        
+        // if (response.success) {
+        //     localStorage.setItem('authToken', response.authToken);
+        //     navigateTo('/main');
+        // } else {
+        //     errorMessage.value = response.message || 'Invalid code. Please try again.';
+        // }        
     } catch (error) {
         errorMessage.value = 'Invalid code. Please try again.';
     }
 };
+
+
 
 </script>
