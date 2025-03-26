@@ -137,7 +137,7 @@ async function handleLogin() {
 
         console.log(encrypt);
 
-        sessionStorage.setItem("pri", pair.getPrivate("hex"))
+        //sessionStorage.setItem("pri", pair.getPrivate("hex"))
 
         try {
             const req : EncryptedRes | any = await $fetch("/api/login", {

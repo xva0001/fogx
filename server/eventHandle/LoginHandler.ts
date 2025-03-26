@@ -131,9 +131,12 @@ export const loginEvent = async (event: H3Event) => {
                     user = await conn.model("user", userSchema).findOne({ Email: inputId, sha3_256: sha3_256_pass, sha3_384: sha3_384_pass });
                 }
 
-                // 使用 Mutex 避免競爭條件
-                const release = await mutex.acquire();
+                
+                
                 if (user) {
+                    // 使用 Mutex 避免競爭條件
+                    const release = await mutex.acquire();
+
                     const db_data_verify_packet: IUser_Hash = {
                         CUUID: user.CUUID,
                         Email: user.Email,
@@ -158,9 +161,20 @@ export const loginEvent = async (event: H3Event) => {
                         console.log("Hash : ", orgVerify);
                         console.log("user hash :", user.objHash);
 
-                        verify = SignMessage.verify(ecKey.pubkey, String(user.objSign), String(user.objHash));
+                        if (!orgVerify) {
+                            throw new Error("err : hash inconsistant");
+                        } else {
+
+                            verify = SignMessage.verify(ecKey.pubkey, String(user.objSign), String(user.objHash));
+                        }
+
+                        //do something 
+                        if (!verify) {
+                            throw new Error("err ; hash val are same, but signature problem");
+                        }
                     } catch (e) {
                         console.log("sign Err", e);
+                        verify = false
                     }
                     try {
                         matchCount++;
@@ -168,17 +182,13 @@ export const loginEvent = async (event: H3Event) => {
                         if (verify === false) {
                             problemInt.push(userArr.length - 1);
                             countError++;
-
-
-
-
                         } else {
                             id = user.CUUID;
                         }
                     } finally {
                         release();
                     }
-                }           
+                }
             }));
 
             return { matchCount, id, countError, userArr, problemInt };
@@ -193,12 +203,14 @@ export const loginEvent = async (event: H3Event) => {
             if (!id) {
                 throw new Error("Username or email is undefined");
             }
-            
-            
+
+
             let res = await loginCompare(id, d_rq.data.hash3_256_password, d_rq.data.hash384_password, isUsername)
+            
             //todo : fix error by db, let output the correct IUser
             //CALL DATAfIXER
             //UPDATE ORGIN DATA
+
             uid = res.id
 
             console.log(uid);

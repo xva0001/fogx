@@ -1,6 +1,8 @@
 import EC from "elliptic"
 import pkg from "js-sha3"
 import SignMessage from "~/shared/Request/signMessage"
+import "h3"
+import { H3Event } from "h3"
 
 const {sha3_256, sha3_384} = pkg
 
@@ -12,13 +14,12 @@ createError({
 }).toJSON()                             //if you have redis or other stroge to save dynamic key pair, please change this part
 
 
-const getKey = (key:string|null|undefined)=>{
-
-    if(!key){
-        return noKeyErr
+const getKey = (key: string | null | undefined): { pubkey: string; len: number } | typeof noKeyErr => {
+    if (!key) {
+        return noKeyErr;
     }
-    return {"pubkey":key , "len" : key.length}
-}
+    return { pubkey: key, len: key.length };
+};
 
 export const ecdhpubkey = ()=>{
     let key =process.env.ECC_PUBLIC_KEY

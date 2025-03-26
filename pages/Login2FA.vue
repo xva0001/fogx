@@ -66,6 +66,9 @@ import { ref, onMounted } from 'vue';
 import logo from "~/assets/logo/logo.svg"
 import dark_logo from "~/assets/logo/logo_dark.svg"
 import DarkModeBtn from "~/components/DarkModeBtn.vue";
+import type { EncryptedRes } from '~/shared/Request/IEncryptRes';
+import RequestEncryption from '~/shared/Request/requestEncrytion';
+import { calSharedKey, genKeyCurve25519 } from '~/shared/useKeyFn';
 
 
 const isDark = useThemeStore().isDark;
@@ -111,9 +114,28 @@ const handle2FASubmit = async () => {
             errorMessage.value = 'User identifier not found. Please login again.';
             return;
         }
+        //change key to ensure security
+
+        let servPubKey = await $fetch("/api/ECDHpubkey")
+        //gen key
+        let pair = genKeyCurve25519()
+        //calculate shared key
+        let shared = calSharedKey(servPubKey.pubkey, pair.getPrivate("hex"))
+        const response_enc : EncryptedRes | any = await $fetch("/api/2FA",{
+            method :"POST",
+            headers:{"Content-Type":"application/json"},
+            body: RequestEncryption.encryptMessage(JSON.stringify({
+                jwt : jwt,
+                paseto : paseto,
+                CUUID : CUUID,
+                code : code
+            }),
+            shared        
+        )
+        })
 
         // Validate 2FA code
-        //await loginStore.validate2FA(code.value); //
+        // await loginStore.validate2FA(code.value); //
 
         // If successful, emit event to handle next step
         // You can modify this based on your store implementation
@@ -121,7 +143,7 @@ const handle2FASubmit = async () => {
 
 
         // //Handle successful 2FA validation
-        //TODO : Update user login state based on server response
+        // TODO : Update user login state based on server response
 
         // const response = await $fetch('/api/2FA/vaildator.post', {  // 2FA validation API endpoint
         //     method: 'POST',
@@ -130,18 +152,17 @@ const handle2FASubmit = async () => {
         //     },
         //     body: JSON.stringify({ code: code.value, CUUID}),
         // });
+        let response : any = RequestEncryption.decryptMessage(response_enc.encryptedMessage,shared,response_enc.iv)
 
-        // if (response.success) {
-        //     localStorage.setItem('authToken', response.authToken);
-        //     navigateTo('/main');
-        // } else {
-        //     errorMessage.value = response.message || 'Invalid code. Please try again.';
-        // }        
+        if (response.success) {
+            sessionStorage.setItem('jwt', response.jwt);
+            sessionStorage.setItem("paseto",response.paseto)
+            navigateTo('/main');
+        } else {
+            errorMessage.value = response.message || 'Invalid code. Please try again.';
+        }        
     } catch (error) {
         errorMessage.value = 'Invalid code. Please try again.';
     }
 };
-
-
-
 </script>
