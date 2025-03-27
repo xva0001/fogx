@@ -62,7 +62,7 @@
             <div class="text-center mt-4 text-sm">
                 <p>
                     Don't have an account?
-                    <a href="#" class="text-blue-500 hover:underline">Sign Up</a>
+                    <a class="text-blue-500 hover:underline" @click="goRegister">Sign Up</a>
                 </p>
             </div>
         </div>
@@ -97,6 +97,10 @@ const goBack = () => {
     navigateTo({
         path: "/"
     })
+}
+
+const  goRegister = ()=>{
+    navigateTo({path:"/register"})
 }
 
 // 登入邏輯
