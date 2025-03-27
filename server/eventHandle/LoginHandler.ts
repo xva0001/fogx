@@ -143,7 +143,7 @@ export const loginEvent = async (event: H3Event) => {
                         sha3_256: user.sha3_256,
                         sha3_384: user.sha3_384,
                         createdDate: user.createdDate,
-                        lastestLoginDate: user.lastestLoginDate,
+                        //lastestLoginDate: user.lastestLoginDate,
                         keyOf2FA: user.keyOf2FA, //share
                         backupCode: user.backupCode,
                         username: user.username,
