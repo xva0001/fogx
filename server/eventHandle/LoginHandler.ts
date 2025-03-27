@@ -14,6 +14,9 @@ import { getCorrectUser } from "../DataFixer/UserInformationFixer"
 import { Mutex } from "async-mutex"; // 確保併發安全
 import pkg from "js-sha3"
 import { MongoDBConnector } from "../utils/mongodbConn"
+import { createSignedPackets } from "../utils/SignIUser"
+import { secrets } from "easy-shamir-secret-sharing"
+import { sha3_256_userHash } from "../utils/HashedUser"
 const { sha3_256, sha3_384 } = pkg
 
 
@@ -118,23 +121,39 @@ export const loginEvent = async (event: H3Event) => {
             let threshold = getThreshold();
             let id: string = "";
             let countError = 0;
-            let userArr: IUser[] = [];
+            let userArr: (IUser | undefined)[] = [];
             let problemInt: number[] = [];
-
-            const mutex = new Mutex(); // 避免競爭條件
+            
+            const mutex = new Mutex(); // Avoid race conditions
 
             await Promise.all(getAllConns().map(async (conn) => {
                 let user;
+
                 if (isUsername) {
-                    user = await conn.model("user", userSchema).findOne({ username: inputId, sha3_256: sha3_256_pass, sha3_384: sha3_384_pass });
+                    user = await conn.model("user", userSchema).findOne({ username: inputId, sha3_256: sha3_256_pass, sha3_384: sha3_384_pass }).lean();
                 } else {
-                    user = await conn.model("user", userSchema).findOne({ Email: inputId, sha3_256: sha3_256_pass, sha3_384: sha3_384_pass });
+                    user = await conn.model("user", userSchema).findOne({ Email: inputId, sha3_256: sha3_256_pass, sha3_384: sha3_384_pass }).lean();
                 }
 
-                
-                
+                let uuidCount = 0;
+                if (user?.CUUID) {
+                    uuidCount = await conn.model("user", userSchema).countDocuments({ CUUID: user.CUUID });
+                }
+
+                // If uuidCount is 1 and user is undefined -> trigger verify = false
+                if ((uuidCount === 1 && !user) || !user ) {
+                    const release = await mutex.acquire();
+                    try {
+                        userArr.push(undefined);
+                        problemInt.push(userArr.length - 1);
+                        countError++;
+                    } finally {
+                        release();
+                    }
+                    return;
+                }
+
                 if (user) {
-                    // 使用 Mutex 避免競爭條件
                     const release = await mutex.acquire();
 
                     const db_data_verify_packet: IUser_Hash = {
@@ -144,45 +163,48 @@ export const loginEvent = async (event: H3Event) => {
                         sha3_384: user.sha3_384,
                         createdDate: user.createdDate,
                         lastestLoginDate: user.lastestLoginDate,
-                        keyOf2FA: user.keyOf2FA, //share
+                        keyOf2FA: user.keyOf2FA,
                         backupCode: user.backupCode,
                         username: user.username,
                         objHash: "",
                         objSign: "",
                     };
                     let verify;
+                    console.log("constructor String", JSON.stringify(db_data_verify_packet));
+                    
                     try {
                         const ecKey = ec_sign_key();
                         if (!ecKey || !("pubkey" in ecKey)) {
                             throw new Error("Invalid EC key: pubkey is missing");
                         }
-                        let orgVerify = sha3_256(JSON.stringify(db_data_verify_packet)) == user.objHash
-                        console.log("constructor hash : ", sha3_256(JSON.stringify(db_data_verify_packet)))
+                        let orgVerify = sha3_256_userHash(user) == user.objHash;
+                        console.log("constructor hash : ", sha3_256(JSON.stringify(db_data_verify_packet)));
+                        console.log("function hash : ", sha3_256_userHash(user));
+
                         console.log("Hash : ", orgVerify);
                         console.log("user hash :", user.objHash);
 
                         if (!orgVerify) {
-                            throw new Error("err : hash inconsistant");
+                            throw new Error("err : hash inconsistant");//
                         } else {
-
                             verify = SignMessage.verify(ecKey.pubkey, String(user.objSign), String(user.objHash));
                         }
 
-                        //do something 
                         if (!verify) {
                             throw new Error("err ; hash val are same, but signature problem");
                         }
                     } catch (e) {
                         console.log("sign Err", e);
-                        verify = false
+                        verify = false;
                     }
                     try {
-                        matchCount++;
-                        userArr.push(user);
                         if (verify === false) {
+                            userArr.push(undefined);
                             problemInt.push(userArr.length - 1);
                             countError++;
                         } else {
+                            userArr.push(user);
+                            matchCount++;
                             id = user.CUUID;
                         }
                     } finally {
@@ -190,26 +212,83 @@ export const loginEvent = async (event: H3Event) => {
                     }
                 }
             }));
-
             return { matchCount, id, countError, userArr, problemInt };
         }
-
-
-
-
         let uid
         try {
             let id: string = isUsername ? d_rq.data.username! : d_rq.data.email!;
             if (!id) {
                 throw new Error("Username or email is undefined");
             }
-
-
             let res = await loginCompare(id, d_rq.data.hash3_256_password, d_rq.data.hash384_password, isUsername)
-            
             //todo : fix error by db, let output the correct IUser
             //CALL DATAfIXER
-            //UPDATE ORGIN DATA
+            async function updateDB(uuid: string, dataUpdate: IUser[],/* problemInt: number[] no use, all update */) {
+                await Promise.all(getAllConns().map(async (conn, index) => {
+                    const userModel = conn.model("user", userSchema)
+                    const updateUser = dataUpdate[index]
+
+                    console.log("updated User :",updateUser);
+                    await userModel.updateOne(
+                        { CUUID: uuid }, {
+                        $set: {
+                            Email: updateUser.Email,
+                            sha3_256: updateUser.sha3_256,
+                            sha3_384: updateUser.sha3_384,
+                            createdDate: updateUser.createdDate, //force
+                            updatedDate: new Date(),
+                            lastestLoginDate: updateUser.lastestLoginDate,
+                            keyOf2FA: updateUser.keyOf2FA,
+                            backupCode: updateUser.backupCode as string[],
+                            icon: updateUser.icon,
+                            username: updateUser.username,
+                            roles: updateUser.roles,
+                            objHash: updateUser.objHash,
+                            objSign: updateUser.objSign
+                        },
+                    }, {
+                        strict: false
+                    }
+                )
+
+
+                }))
+            }
+            console.log("countError ",res.countError);
+            
+            if (res.countError >= getThreshold()) {
+                return {
+                    success: false,
+                    message: "account data modified. login failed  or account and password not match"
+                }
+            } else if (res.countError < getThreshold() && res.countError != 0 && res.matchCount >= getThreshold() ) {
+                console.log("try to fix");
+                let r_user = await getCorrectUser(res.userArr, res.problemInt)
+
+                let share_arr_for_2fa_key = await secrets.share(r_user.keyOf2FA, getSharePartNum(), getThreshold())
+                console.log(typeof r_user.backupCode);
+                r_user.backupCode = typeof r_user.backupCode === "string" 
+                ? (r_user.backupCode as string).split(",") 
+                : r_user.backupCode;
+                let packets = await createSignedPackets(r_user.CUUID, r_user.Email, r_user.sha3_256, r_user.sha3_384, r_user.backupCode, r_user.username, share_arr_for_2fa_key, r_user.createdDate, undefined, r_user.lastestLoginDate)
+                //console.log(packets)
+
+                //UPDATE ORGIN DATA//hard code now, wait to reconstruct //todo
+                await updateDB(res.id, packets)
+                //overwrite 
+                res = await loginCompare(id, d_rq.data.hash3_256_password, d_rq.data.hash384_password, isUsername)
+
+
+            }
+
+            ///no user
+            if (!(res.matchCount >= getThreshold())) {
+                return {
+                    success: false,
+                    message: "username or password error"
+                }
+            }
+
 
             uid = res.id
 
@@ -223,7 +302,6 @@ export const loginEvent = async (event: H3Event) => {
                 success: false,
                 message: "username or password error"
             }
-
         }
         try {
             let response: any = {}
