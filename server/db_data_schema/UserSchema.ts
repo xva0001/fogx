@@ -30,7 +30,7 @@ export interface IUser_Hash {
     sha3_384: string;
     createdDate: Date;
     updatedDate?: Date; // Made optional //no hash水木水木
-    lastestLoginDate: Date;
+    lastestLoginDate?: Date;
     keyOf2FA: string;
     backupCode: string[];
     username: string;
@@ -58,7 +58,7 @@ const userSchema = new Schema<IUser>({
         immutable: true
     },
     updatedDate: { type: Date, default: Date.now },
-    lastestLoginDate: { type: Date },
+    //lastestLoginDate: { type: Date },
     keyOf2FA: {
         type: String,
         required: true

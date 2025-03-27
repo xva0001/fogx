@@ -162,8 +162,13 @@ export const loginEvent = async (event: H3Event) => {
                         sha3_256: user.sha3_256,
                         sha3_384: user.sha3_384,
                         createdDate: user.createdDate,
+<<<<<<< HEAD
+                        //lastestLoginDate: user.lastestLoginDate,
+                        keyOf2FA: user.keyOf2FA, //share
+=======
                         lastestLoginDate: user.lastestLoginDate,
                         keyOf2FA: user.keyOf2FA,
+>>>>>>> origin/master
                         backupCode: user.backupCode,
                         username: user.username,
                         objHash: "",

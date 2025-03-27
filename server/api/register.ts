@@ -148,6 +148,44 @@ export default defineEventHandler(async (event) => {
         let response = { success: false }
 
         try {
+<<<<<<< HEAD
+            let arr_packet = []
+            for (const share of share_arr_for_2fa_key) {
+                const db_packet: IUser = {
+                    CUUID: uuid,
+                    Email: d_rq.data.email,
+                    sha3_256: d_rq.data.sha3_256_password,
+                    sha3_384: d_rq.data.sha3_384_password,
+                    createdDate: date,
+                    updatedDate: date,
+                    lastestLoginDate: date,
+                    keyOf2FA: share,
+                    backupCode: d_rq.data.backupCodes,
+                    username: d_rq.data.username,
+                    objHash: "",  // 先佔位
+                    objSign: "",  // 先佔位
+                };
+                const cleanPacket : IUser_Hash = { ...db_packet, objHash: String(db_packet.objHash) as string }; //淺copy
+                delete cleanPacket.updatedDate;
+                delete cleanPacket.lastestLoginDate;
+                ///const hash = sha3_256(JSON.stringify(cleanPacket));
+                let string_packet = JSON.stringify(cleanPacket)
+                let org = sha3_256(string_packet)
+                // 現在才產生 hash/sign，確保型別不會爆炸
+                db_packet.objHash = org;
+                db_packet.objSign = await SignMessage.sign(
+                    process.env.EDDSA_SIGN_PRIVATE_KEY!,
+                    string_packet                          //sign include sha3_256
+                ).then(result => result.mess);
+                let isValid_sign =false
+                isValid_sign = SignMessage.verify(process.env.EDDSA_SIGN_PUBLIC_KEY!,db_packet.objSign,String(db_packet.objHash))
+                if (isValid_sign==false) {                   
+                    return createError("sign err ")
+                }
+                console.log(isValid_sign);
+                arr_packet.push(db_packet)
+            }
+=======
             let arr_packet = await createSignedPackets(uuid,d_rq.data.email,d_rq.data.sha3_256_password,d_rq.data.sha3_384_password,d_rq.data.backupCodes,d_rq.data.username,share_arr_for_2fa_key)
             // for (const share of share_arr_for_2fa_key) {
             //     const db_packet: IUser = {
@@ -184,6 +222,7 @@ export default defineEventHandler(async (event) => {
             //     arr_packet.push(db_packet)
             // }//forloop end
             
+>>>>>>> origin/master
             try {
                 InsertedCounter = await input(arr_packet);
             } catch (e) {
