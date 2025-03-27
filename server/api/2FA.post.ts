@@ -161,10 +161,15 @@ export default defineEventHandler(async (event: H3Event): Promise<EncryptedRes |
 
         const updateMutex = new Mutex();
         const updateDate = new Date();
-        await Promise.all(connections.map(async (conn) => {
+
+        await Promise.all(connections.map(async (conn,index) => {
             try {
                 const userModel = conn.model<IUser>("user", userSchema);
-                await userModel.updateOne({ CUUID: decryptedData!.CUUID }, { $set: { lastestLoginDate: updateDate, updatedDate: updateDate } });
+                //wrong update : 
+                //await userModel.updateOne({ CUUID: decryptedData!.CUUID }, { $set: { lastestLoginDate: updateDate, updatedDate: updateDate } });
+
+                
+
             } catch (updateError) {
                 console.error(`Failed to update last login date on DB ${conn.name}:`, updateError);
                 // 記錄錯誤
