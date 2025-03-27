@@ -95,7 +95,6 @@ const handle2FASubmit = async () => {
         const paseto = sessionStorage.getItem("paseto")
         console.log(jwt);
         console.log(paseto);
-
                 
         
 
@@ -108,7 +107,7 @@ const handle2FASubmit = async () => {
         errorMessage.value = '';
 
         const CUUID = sessionStorage.getItem('CUUID');
-        console.log(CUUID);
+        console.log('CUUID read from storage in 2FA:', CUUID);
         
         if (!CUUID) {
             errorMessage.value = 'User identifier not found. Please login again.';
@@ -121,17 +120,28 @@ const handle2FASubmit = async () => {
         let pair = genKeyCurve25519()
         //calculate shared key
         let shared = calSharedKey(servPubKey.pubkey, pair.getPrivate("hex"))
+
+        // 加密核心數據
+        const encryptedCoreData = await RequestEncryption.encryptMessage(JSON.stringify({
+            jwt : jwt,
+            paseto : paseto,
+            CUUID : CUUID,
+            code : code.value
+        }),shared
+        );
+
+        // 構建請求體
+        const requestBody = {
+            iv: encryptedCoreData.iv,
+            encryptedMessage: encryptedCoreData.encryptedMessage,
+            pubkey: pair.getPublic("hex") // 添加客戶端公鑰
+        };
+        
+        // 發送請求
         const response_enc : EncryptedRes | any = await $fetch("/api/2FA",{
             method :"POST",
             headers:{"Content-Type":"application/json"},
-            body: RequestEncryption.encryptMessage(JSON.stringify({
-                jwt : jwt,
-                paseto : paseto,
-                CUUID : CUUID,
-                code : code
-            }),
-            shared        
-        )
+            body: requestBody // 傳遞包含 pubkey 的物件      
         })
 
         // Validate 2FA code
@@ -152,17 +162,43 @@ const handle2FASubmit = async () => {
         //     },
         //     body: JSON.stringify({ code: code.value, CUUID}),
         // });
-        let response : any = RequestEncryption.decryptMessage(response_enc.encryptedMessage,shared,response_enc.iv)
 
-        if (response.success) {
+
+
+        // 等待解密完成，獲取 JSON 字串
+        let decryptedJsonString : string = await RequestEncryption.decryptMessage(response_enc.encryptedMessage,shared,response_enc.iv);
+        console.log("Decrypted JSON string:", decryptedJsonString);
+        console.log("Type of decrypted JSON string:", typeof decryptedJsonString);
+
+        // 聲明 response 變數
+        //let response : any = RequestEncryption.decryptMessage(response_enc.encryptedMessage,shared,response_enc.iv)
+        let response : any;
+        try {
+            // 3. 解析 JSON 字串，將結果賦值給 response
+            response = JSON.parse(decryptedJsonString);
+        } catch (parseError) {
+            console.error("Failed to parse decrypted JSON:", parseError, decryptedJsonString);
+            throw new Error("Failed to parse server response.");
+        }
+
+        // 打印解析後的物件及其屬性 (用於調試)
+        console.log("Parsed response object:", response);
+        if (typeof response === 'object' && response !== null) {
+            console.log("Value of response.success:", response.success);
+            console.log("Type of response.success:", typeof response.success);
+        }
+
+        // 檢查解析後的物件的 success 屬性
+        if (response && response.success === true) {
             sessionStorage.setItem('jwt', response.jwt);
-            sessionStorage.setItem("paseto",response.paseto)
+            sessionStorage.setItem("paseto",response.paseto);
             navigateTo('/main');
         } else {
-            errorMessage.value = response.message || 'Invalid code. Please try again.';
+            errorMessage.value = response?.message || 'Invalid code. Please try again.';
         }        
     } catch (error) {
-        errorMessage.value = 'Invalid code. Please try again.';
+        console.error("Error caught during 2FA submission: ", error);
+        errorMessage.value = 'Invalid code. Please try again!!!';
     }
 };
 </script>
