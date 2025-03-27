@@ -168,6 +168,7 @@ export default defineEventHandler(async (event) => {
                 };
                 const cleanPacket : IUser_Hash = { ...db_packet, objHash: String(db_packet.objHash) as string }; //淺copy
                 delete cleanPacket.updatedDate;
+                delete cleanPacket.lastestLoginDate;
                 ///const hash = sha3_256(JSON.stringify(cleanPacket));
                 let string_packet = JSON.stringify(cleanPacket)
                 let org = sha3_256(string_packet)
