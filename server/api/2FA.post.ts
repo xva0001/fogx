@@ -6,7 +6,7 @@ import InvalidError from "~/server/err/InvalidErr"; // error
 import { calSharedKey } from "~/shared/useKeyFn";
 import RequestEncryption from "~/shared/Request/requestEncrytion";
 import { MongoDBConnector } from "~/server/utils/mongodbConn"; // 假設的MongoDB連接器
-import { userSchema, IUser } from "~/server/db_data_schema/UserSchema"; // 用戶Schema
+import { userSchema, IUser, Role } from "~/server/db_data_schema/UserSchema"; // 用戶Schema
 import { secrets } from "easy-shamir-secret-sharing";
 import { getThreshold } from "~/server/utils/getShareSettings"; // 閾值獲取函數
 import { SecFATool, IFactorCheckTool } from "~/shared/2FATool"; // 2FA工具
@@ -17,6 +17,8 @@ import { generatePaseto,
          verifyPasetoForTesting, 
          generatePasetoForTesting} from "~/server/token_validator/paseto"; // Paseto 工具
 import { Mutex } from "async-mutex";
+import { getCorrectUser } from "../DataFixer/UserInformationFixer";
+import { cleanMongoObject } from "../utils/cleanObject";
 
 // 定義解密後請求體的 Zod Schema
 const I2FARequestSchema = z.object({
@@ -100,15 +102,28 @@ export default defineEventHandler(async (event: H3Event): Promise<EncryptedRes |
     // 獲取 2FA 密鑰分片
     const keyShares: string[] = [];
     const fetchMutex = new Mutex();
+    const userArr : (IUser|undefined)[] = []
+    const problemInt :number[] = []
 
-    await Promise.all(connections.map(async (conn) => {
+    await Promise.all(connections.map(async (conn,index) => {
         try {
             const userModel = conn.model<IUser>("user", userSchema);
             const user = await userModel.findOne({ CUUID: decryptedData!.CUUID }).select('keyOf2FA').lean();
+            const userInfo = await userModel.findOne({CUUID:decryptedData!.CUUID}).lean()
             if (user && user.keyOf2FA) {
                 const release = await fetchMutex.acquire();
                 try {
                     keyShares.push(user.keyOf2FA);
+                    if (userInfo) {               
+                        userArr.push(cleanMongoObject(userInfo) as IUser);
+                        console.log(userInfo);
+                        
+                    }else{
+                        userArr.push(undefined)
+                        problemInt.push(index)
+                        throw new Error()
+
+                    }
                 } finally {
                     release();
                 }
@@ -122,7 +137,7 @@ export default defineEventHandler(async (event: H3Event): Promise<EncryptedRes |
     console.log(`Key shares found: ${keyShares.length}`);
     if (keyShares.length < threshold) {
         console.error(`Insufficient key shares found (${keyShares.length}) for CUUID: ${decryptedData.CUUID}. Required: ${threshold}`);
-        throw new Error("Could not retrieve enough key shares.");
+        throw new Error("Could not retrieve enough key shares, please try login again");
     }
 
     // 重組 2FA 密鑰
@@ -159,22 +174,48 @@ export default defineEventHandler(async (event: H3Event): Promise<EncryptedRes |
         };
         console.log("Validation successful. Payload:", responsePayload);
 
+        //part : database 
         const updateMutex = new Mutex();
         const updateDate = new Date();
+        let corr = await getCorrectUser(userArr,problemInt)
+        corr.backupCode = typeof corr.backupCode ==="string"
+        ? (corr.backupCode as string).split(",")
+        : corr.backupCode
+        
+        //not use
+        // corr.roles = typeof corr.roles === "string"
+        // ? (corr.roles as string).split(",") as Role[]
+        // : corr.roles as Role[]; 
+        //get signedPacket
+        console.log(corr);
 
+        let packets = await createSignedPackets(corr.CUUID,corr.Email,corr.sha3_256,corr.sha3_384,corr.backupCode,corr.username,keyShares,corr.createdDate)
+        console.log("test : ",packets);
+        
         await Promise.all(connections.map(async (conn,index) => {
             try {
                 const userModel = conn.model<IUser>("user", userSchema);
                 //wrong update : 
-                //await userModel.updateOne({ CUUID: decryptedData!.CUUID }, { $set: { lastestLoginDate: updateDate, updatedDate: updateDate } });
+                //await userModel.updateOne({ CUUID: decryptedData!.CUUID }, { $set: { lastestLoginDate: updateDate, updatedDate: updateDate } });                        
+                //this must be update, not all update
+                const packet = packets[index]
+                let resDB = await userModel.updateOne({CUUID: corr.CUUID },{
+                    lastestLoginDate : packet.lastestLoginDate,
+                    updatedDate : packet.updatedDate,
+                    objHash : packet.objHash,
+                    objSign : packet.objSign
+                })
 
-                
-
+                //if no data
+                if (resDB.modifiedCount == 0) {
+                  await new userModel(packet).save()
+                }
             } catch (updateError) {
                 console.error(`Failed to update last login date on DB ${conn.name}:`, updateError);
                 // 記錄錯誤
             }
         }));
+        //end part database
 
     } else {
         // 驗證失敗
@@ -193,12 +234,13 @@ export default defineEventHandler(async (event: H3Event): Promise<EncryptedRes |
     );
 
     return {
-        success: true, // API 請求本身成功（即使 2FA 驗證失敗）
+        success: true, 
         iv: encryptedResponseData.iv,
         encryptedMessage: encryptedResponseData.encryptedMessage,
     };
 
   } catch (error: any) {
+
     console.error("!!! Error caught in /api/2FA backend:", error);
 
     // 嘗試加密錯誤訊息回傳
@@ -213,7 +255,7 @@ export default defineEventHandler(async (event: H3Event): Promise<EncryptedRes |
                 shared
             );
             return {
-                success: true, // API 請求本身成功，但業務邏輯失敗
+                success: false, 
                 iv: encryptedError.iv,
                 encryptedMessage: encryptedError.encryptedMessage,
             };
