@@ -288,6 +288,11 @@ import {
 import type { MenuItem } from '~/composables/IMenu';
 import type { IStory } from '~/composables/Istory';
 
+import RequestEncryption from '~/shared/Request/requestEncrytion';
+import { calSharedKey, genKeyCurve25519 } from '~/shared/useKeyFn';
+import type { EncryptedRes } from '~/shared/Request/IEncryptRes';
+import type { EncryptReq } from '~/shared/Request/IEncryptReq';
+import type { FetchOptions} from 'ofetch';
 
 const DarkMode = useThemeStore();
 const isDark = ref(DarkMode.isDark);
@@ -368,30 +373,51 @@ const toggleTheme = () => {
   }
 }
 
-// 在 onMounted 中添加主題初始化
 onMounted(() => {
+  // 1. 初始化主題
   if (import.meta.client) {
-    const savedTheme = localStorage.getItem('theme') || 'light'
-    isDark.value = savedTheme === 'dark'
-    document.documentElement.dataset.theme = savedTheme
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    isDark.value = savedTheme === 'dark';
+    document.documentElement.dataset.theme = savedTheme;
   }
-})
+
+  // 2. 首次加載貼文
+  fetchPosts(1);
+
+  // 3. 設置無限滾動 (假設 setupInfiniteScroll 返回 observer)
+  const observer = setupInfiniteScroll();
+
+  // 4. 設置時間戳更新定時器 (例如，每秒更新一次 currentTimestamp)
+  const timestampInterval = setInterval(() => {
+    currentTimestamp.value = Date.now();
+  }, 1000); // 每秒更新一次
+
+  // 5. 在 onUnmounted 中統一清理
+  onUnmounted(() => {
+    // 清理無限滾動觀察者
+    if (infiniteScrollTrigger.value && observer) { // 確保 observer 存在
+      observer.unobserve(infiniteScrollTrigger.value);
+    }
+    // 清理時間戳定時器
+    clearInterval(timestampInterval);
+  });
+});
 
 interface UserPost {
-    id: number;
+    id: number | string;
     icon: string;
     username: string;
     userID: string;
-    date: Date; // 確保這裡使用的是正確的 Date 對象
+    date: Date | string; // 確保這裡使用的是正確的 Date 對象
     title: string;
     content: string;
     images?: string[];
     tags?: string[];
-    likes?: number;
+    likes: number;
     commentCount: number;
-    isLiked?: boolean;
-    showComments: boolean;
-    newComment: string;
+    isLiked: boolean;
+    showComments?: boolean;
+    newComment?: string;
     comments: Comment[];
 }
 
@@ -404,18 +430,6 @@ const currentUser = ref({
 
 // Add a reactive timestamp to force updates
 const currentTimestamp = ref(Date.now());
-
-// Update timestamp every second
-onMounted(() => {
-  const interval = setInterval(() => {
-    //console.log('Updating timestamp:', Date.now());
-    currentTimestamp.value = Date.now();
-  }, 1000);
-
-  onUnmounted(() => {
-    clearInterval(interval);
-  });
-});
 
 // Initial posts data with proper date objects
 const initialPosts:UserPost[] = [
@@ -462,9 +476,10 @@ const initialPosts:UserPost[] = [
 // Infinite scroll related refs
 const infiniteScrollTrigger = ref<HTMLElement | null>(null);
 const isLoading = ref(false);
-const page = ref(1);
-const hasMore = ref(true);
+const page = ref(1); // 從第一頁開始加載
+const hasMore = ref(true); // 假設一開始有更多數據
 const displayedPosts = ref(initialPosts); // Initialize with initial posts
+//const displayedPosts = ref<UserPost[]>([]);
 const error = ref<string | null>(null);
 
 // Add stories data
@@ -499,13 +514,13 @@ const stories = ref<IStory[]>([
 const postPlaceholder = ref("What's on your mind?");
 
 // Add new refs
-const selectedStoryIndex = ref(null);
+const selectedStoryIndex = ref<number | null>(null);
 const newPostContent = ref('');
 const showCreateStory = ref(false);
 const showCreatePost = ref(false);
 
 // Add new ref for share modal
-const shareModalPost = ref(null);
+const shareModalPost = ref<UserPost | null>(null);
 
 // Function to handle create post
 const openCreatePost = () => {
@@ -513,111 +528,276 @@ const openCreatePost = () => {
 };
 
 // Toggle like on a post
-const toggleLike = (post: any) => {
+const toggleLike = async (post: UserPost) => {
+  const originalLiked = post.isLiked;
+  // 確保 likes 是數字，如果 undefined 則視為 0
+  const originalLikes = post.likes ?? 0;
+
+  // 更新 UI
   post.isLiked = !post.isLiked;
-  post.likes += post.isLiked ? 1 : -1;
+  post.likes = originalLikes + (post.isLiked ? 1 : -1);
+
+  try {
+    // 使用 fetchEncrypted，POST 通常沒有 payload，但後端可能需要空的加密體？
+    // 假設後端不需要加密體，或者 fetchEncrypted 能處理無 payload 的 POST    
+    const response = await fetchEncrypted<{ likes: number; isLiked: boolean }>(
+        `/api/posts/${post.id}/like`,
+        { method: 'POST' }
+        // 如果後端需要空加密體: , {}
+    );
+
+    // 使用伺服器返回的最終狀態更新 (可選，如果樂觀更新足夠)
+    post.likes = response.likes;
+    post.isLiked = response.isLiked;
+    console.log(`Post ${post.id} like status updated by server.`);
+
+  } catch (err: any) {
+    console.error(`Error toggling like for post ${post.id}:`, err);
+    // 出錯時恢復原狀
+    post.isLiked = originalLiked;
+    post.likes = originalLikes;
+    alert(`Failed to update like status: ${err.data?.message || 'Unknown error'}`);
+  }
 };
 
 // Toggle comments visibility
-const toggleComments = (post: any) => {
-  post.showComments = !post.showComments;
+const toggleComments = (post: UserPost) => { post.showComments = !post.showComments; };
+const getAuthHeaders = (): Record<string, string> =>{
+  const token = sessionStorage.getItem('jwt'); // 或 paseto，取決於後端期望
+  if (!token) {
+    console.warn('Authentication token not found.');
+    // 可以考慮導航到登入頁面
+    // navigateTo('/login');
+    return {};
+  }
+  return {
+    'Authorization': `Bearer ${token}`
+  };
 };
 
 // Enhanced comment interface
 interface Comment {
-  id: number;
+  id: number | string;
   icon: string;
   username: string;
   userID: string;
-  date: Date;
+  date: Date | string;
   content: string;
-  isEditing: boolean;
-  editContent: string;
+  isEditing?: boolean;
+  editContent?: string;
+}
+
+type FetchMethod = "GET" | "HEAD" | "PATCH" | "POST" | "PUT" | "DELETE" | "CONNECT" | "OPTIONS" | "TRACE";
+async function fetchEncrypted<T = any>(
+  url: string,
+  options: RequestInit = {}, // 包含 method, headers 等
+  payload?: any // 對於 POST/PUT，這是要加密的數據
+): Promise<T> { // 返回解密後的業務數據
+  console.log(`fetchEncrypted: ${options.method || 'GET'} ${url}`);
+  let shared: string | undefined; // 將 shared 提升作用域以便 catch 中使用
+
+  try {
+    // 1. 獲取伺服器公鑰 (考慮緩存以提高效率)
+    const servPubKeyData = await $fetch<{ pubkey: string }>("/api/ECDHpubkey");
+    if (!servPubKeyData || !servPubKeyData.pubkey) {
+        throw new Error("Failed to get server public key.");
+    }
+
+    // 2. 生成客戶端密鑰對
+    const pair = genKeyCurve25519();
+    const clientPubKey = pair.getPublic("hex");
+    shared = calSharedKey(servPubKeyData.pubkey, pair.getPrivate("hex"));
+
+    // 3. 準備請求體 (如果需要加密 payload)
+    let requestBodyForFetch: string | undefined;
+    if (payload && (options.method === 'POST' || options.method === 'PUT' || options.method === 'DELETE')) { // DELETE 也可能需要加密 body
+      console.log('Encrypting payload:', payload);
+      const encryptedCoreData = await RequestEncryption.encryptMessage(
+        JSON.stringify(payload),
+        shared
+      );
+      const encryptedBodyObject: EncryptReq = { // 符合後端期望的結構
+        iv: encryptedCoreData.iv,
+        encryptedMessage: encryptedCoreData.encryptedMessage,
+        pubkey: clientPubKey
+      };
+      requestBodyForFetch = JSON.stringify(encryptedBodyObject);
+      console.log('Encrypted request body:', requestBodyForFetch);
+    }
+
+    // 4. 準備 $fetch 選項
+    const baseFetchOptions = { // 先包含 method 之外的其他選項
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders(),
+        ...(options.headers || {}),
+      },
+      body: requestBodyForFetch,
+      // 可以複製其他兼容選項
+    };
+
+    // 驗證並添加 method 屬性，確保其類型正確
+    const upperCaseMethod = options.method?.toUpperCase();
+    let finalMethod: FetchMethod | undefined = undefined;
+    if (upperCaseMethod && ["GET", "HEAD", "PATCDH", "POST", "PUT", "DELETE", "CONNECT", "OPTIONS", "TRACE"].includes(upperCaseMethod)) {
+        // 將驗證過的、大寫的方法字符串斷言為 Nitro 期望的類型
+        finalMethod = upperCaseMethod as FetchMethod; // <--- 關鍵修正
+    }
+
+    // 構造最終傳遞給 $fetch 的選項
+    const finalFetchOptions = {
+        ...baseFetchOptions,
+        ...(finalMethod && { method: finalMethod }) // 只有當 method 有效時才添加 method 屬性
+    };
+
+    // 5. 發送請求
+    console.log('Sending fetch request with options:', finalFetchOptions);
+    const response_enc = await $fetch<EncryptedRes>(url, finalFetchOptions);
+    console.log('Received encrypted response:', response_enc);
+
+    // 6. 檢查基本回應結構
+    if (!response_enc || typeof response_enc.encryptedMessage !== 'string' || typeof response_enc.iv !== 'string') {
+      throw new Error('Invalid encrypted response structure from server.');
+    }
+
+    // 7. 解密回應
+    const decryptedJsonString = await RequestEncryption.decryptMessage(response_enc.encryptedMessage, shared, response_enc.iv);
+    console.log('Decrypted JSON string:', decryptedJsonString);
+
+    // 8. 解析 JSON
+    const decryptedResponse = JSON.parse(decryptedJsonString);
+    console.log('Parsed decrypted response:', decryptedResponse);
+
+    // 9. 檢查業務成功標誌 (假設後端總是在解密後的數據中包含 success)
+    if (decryptedResponse && decryptedResponse.success === false) {
+      console.error('Server indicated failure:', decryptedResponse.message);
+      throw new Error(decryptedResponse.message || 'Server returned an error.');
+    }
+
+    // 10. 返回解密後的業務數據 (可能是整個對象，或其中的 data 屬性，取決於後端)
+    return decryptedResponse as T;
+
+  } catch (error: any) {
+    console.error(`Encrypted fetch to ${url} failed:`, error);
+    // 嘗試從 H3Error 中獲取更詳細的訊息
+    const message = error.data?.message || error.message || 'An error occurred during the encrypted request.';
+
+    // 如果是解密失敗，可能需要特殊處理或提示
+    if (error.message?.includes('decrypt')) console.error("Decryption likely failed.");
+    // 重新拋出錯誤，讓調用者知道操作失敗
+    throw new Error(message);
+  }
 }
 
 // Start editing a comment
-const startEdit = (comment: Comment) => {
-  comment.isEditing = true;
-  comment.editContent = comment.content;
-};
+const startEdit = (comment: Comment) => { comment.isEditing = true; comment.editContent = comment.content; };
 
 // Cancel comment editing
-const cancelEdit = (comment: Comment) => {
-  comment.isEditing = false;
-  comment.editContent = '';
-};
+const cancelEdit = (comment: Comment) => { comment.isEditing = false; comment.editContent = ''; };
 
 // Update a comment
-const updateComment = async (post: any, comment: Comment) => {
+const updateComment = async (post: UserPost, comment: Comment) => {
+  const newContent = comment.editContent?.trim();
+  if (!newContent || newContent === comment.content) {
+    comment.isEditing = false; // 如果內容未變或為空，則取消編輯
+    return;
+  }
+
+  const originalContent = comment.content;
+  comment.content = newContent; // 更新 UI
+  comment.isEditing = false;
+
   try {
-    console.log('Updating comment:', comment.id);
-    console.log('New content:', comment.editContent);
-
-    if (!comment.editContent?.trim()) return;
-
-    // 在實際應用中，這裡會是一個 API 調用
-    // const response = await fetch(`/api/posts/${post.id}/comments/${comment.id}`, {
-    //   method: 'PUT',
-    //   headers: {
-    //     'Content-Type': 'application/json',
-    //   },
-    //   body: JSON.stringify({ content: comment.editContent.trim() }),
-    // });
-
-    // 更新評論內容
-    comment.content = comment.editContent.trim();
-    comment.isEditing = false;
+    // 使用 fetchEncrypted，將新內容作為 payload 加密
+    await fetchEncrypted(
+        `/api/posts/${post.id}/comments/${comment.id}`,
+        { method: 'PUT' }, // 或 PATCH
+        { content: newContent } // 要加密的數據
+    );
     comment.editContent = '';
 
-    console.log('Comment updated successfully:', comment.content);
-  } catch (error) {
-    console.error('Error updating comment:', error);
+  } catch (err: any) {
+    console.error(`Error updating comment ${comment.id}:`, err);
+    comment.content = originalContent; // 恢復原狀
+    comment.isEditing = true; // 保持編輯狀態以便用戶重試
+    alert(`Failed to update comment: ${err.data?.message || 'Unknown error'}`);
   }
 };
 
 // Delete a comment
-const deleteComment = async (post: any, comment: Comment) => {
-  if (!confirm('Are you sure you want to delete this comment?')) return;
+const deleteComment = async (post: UserPost, comment: Comment) => {
+  if (!confirm('Are you sure?')) return;
+  const commentIndex = post.comments.findIndex((c) => c.id === comment.id);
+  if (commentIndex === -1) return;
+  post.comments.splice(commentIndex, 1);
+  post.commentCount--;
 
   try {
-    console.log('Deleting comment:', comment.id);
-    console.log('Current comments:', post.comments);
+    // 使用 fetchEncrypted，DELETE 通常沒有 payload
+    await fetchEncrypted(
+        `/api/posts/${post.id}/comments/${comment.id}`,
+        { method: 'DELETE' }
+    );
+    console.log(`Comment ${comment.id} deleted successfully.`);
 
-    const commentIndex = post.comments.findIndex((c: any) => c.id === comment.id);
-    console.log('Comment index:', commentIndex);
-
-    if (commentIndex !== -1) {
-      post.comments.splice(commentIndex, 1);
-      post.commentCount--;
-      console.log('Comments after deletion:', post.comments);
-    }
-  } catch (error) {
-    console.error('Error deleting comment:', error);
+  } catch (err: any) {
+    console.error(`Error deleting comment ${comment.id}:`, err);
+    // 恢復 UI (如果需要，但通常刪除失敗不恢復)
+    // post.comments.splice(commentIndex, 0, comment); // 重新插入
+    // post.commentCount++;
+    alert(`Failed to delete comment: ${err.data?.message || 'Unknown error'}`);
   }
 };
 
 // Modified addComment function
-const addComment = (post: any) => {
-  if (!post.newComment?.trim()) return;
+const addComment = async (post: UserPost) => {
+  const content = post.newComment?.trim();
+  if (!content) return;
 
-  const comment: Comment = {
-    id: Date.now(),
-    icon: currentUser.value.icon,
-    username: currentUser.value.username,
-    userID: currentUser.value.userID,
-    date: new Date(),
-    content: post.newComment.trim(),
-    isEditing: false,
-    editContent: ''
+  const tempCommentId = `temp-${Date.now()}`; // 臨時 ID 用於 UI
+  const newCommentData: Comment = { // 創建一個部分評論對象用於樂觀更新
+      id: tempCommentId,
+      icon: currentUser.value.icon,
+      username: currentUser.value.username,
+      userID: currentUser.value.userID,
+      date: new Date(),
+      content: content,
+      isEditing: false,
+      editContent: ''
   };
 
-  console.log('Adding new comment:', comment);
-  post.comments.unshift(comment);
+  // 更新 UI
+  post.comments.unshift(newCommentData); // 添加到評論列表頂部
   post.commentCount++;
-  post.newComment = '';
+  post.newComment = ''; // 清空輸入框
+
+  try {
+    // 使用 fetchEncrypted，將評論內容作為 payload 加密
+    const savedComment = await fetchEncrypted<Comment>(
+        `/api/posts/${post.id}/comments`,
+        { method: 'POST' },
+        { content: content } // 要加密的數據
+    );
+    const index = post.comments.findIndex(c => c.id === tempCommentId);
+    if (index !== -1) {
+        savedComment.date = new Date(savedComment.date); // 轉換日期
+        post.comments[index] = savedComment;
+        console.log(`Comment added successfully for post ${post.id}:`, savedComment);
+    }
+  } catch (err: any) {
+    console.error(`Error adding comment for post ${post.id}:`, err);
+    // 從 UI 中移除臨時評論
+    const index = post.comments.findIndex(c => c.id === tempCommentId);
+    if (index !== -1) {
+        post.comments.splice(index, 1);
+    }
+    post.commentCount--; // 恢復計數
+    post.newComment = content; // 恢復輸入框內容以便用戶重試
+    alert(`Failed to add comment: ${err.data?.message || 'Unknown error'}`);
+  }
 };
 
-// Mock function to fetch more posts
+/* Mock function to fetch more posts
 const fetchMorePosts = async (pageNumber: number) => {
   await new Promise(resolve => setTimeout(resolve, 1000));
 
@@ -639,71 +819,32 @@ const fetchMorePosts = async (pageNumber: number) => {
     comments: []
   }));
 
-};
+};*/
 
 // Setup intersection observer
 const setupInfiniteScroll = () => {
-  const options = {
-    root: null,
-    rootMargin: '0px',
-    threshold: 0.5
-  };
-
+  const options = { root: null, rootMargin: '0px', threshold: 0.5 };
   const observer = new IntersectionObserver(async (entries) => {
     const target = entries[0];
     if (target.isIntersecting && hasMore.value && !isLoading.value) {
-      try {
-        isLoading.value = true;
-        const newPosts = await fetchMorePosts(page.value);
-        displayedPosts.value = [...displayedPosts.value, ...newPosts];
-        page.value++;
-      } catch (error) {
-        console.error('Error loading more posts:', error);
-      } finally {
-        isLoading.value = false;
-      }
+      await fetchPosts(page.value); // 觸發加載下一頁
     }
   }, options);
 
   if (infiniteScrollTrigger.value) {
     observer.observe(infiniteScrollTrigger.value);
   }
-
   return observer;
 };
 
-// Lifecycle hooks
-onMounted(() => {
-  // 設置無限滾動
-  const observer = setupInfiniteScroll();
-
-  // Update times every minute
-  const timeUpdateInterval = window.setInterval(() => {
-    // Force a re-render of the component
-    displayedPosts.value = [...displayedPosts.value];
-  }, 60000); // Update every minute
-
-  // 清理函數
-  onUnmounted(() => {
-    if (infiniteScrollTrigger.value) {
-      observer.unobserve(infiniteScrollTrigger.value);
-    }
-    // Clear the interval when component is unmounted
-    if (timeUpdateInterval) {
-      clearInterval(timeUpdateInterval);
-    }
-  });
-});
 
 // Error handling
-const retryLoading = () => {
-  // Implement retry logic here
-  console.log('Retrying loading...');
-};
+const retryLoading = () => { fetchPosts(page.value); };
 
 // Format time ago function
-const formatTimeAgo = (date: Date) => {
-  if (isNaN(date.getTime())) {
+const formatTimeAgo = (dateInput: Date | string) => {
+  const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
+  if (!(date instanceof Date) || isNaN(date.getTime())) {
     return 'Invalid Date';
   }
 
@@ -748,9 +889,7 @@ const isValidDate = (date: any) => {
 };
 
 // Add new methods
-const openStory = (index:any) => {
-  selectedStoryIndex.value = index;
-};
+const openStory = (index: number) => { selectedStoryIndex.value = index; };
 
 const closeStory = () => {
   selectedStoryIndex.value = null;
@@ -760,67 +899,152 @@ const openCreateStory = () => {
   showCreateStory.value = true;
 };
 
-// Add new methods for handling submissions
-const handleStorySubmit = async (formData: FormData) => {
+// 獲取貼文
+const fetchPosts = async (pageNumber: number) => {
+  if (isLoading.value || !hasMore.value) return;
+  isLoading.value = true;
+  error.value = null;
+  console.log(`Fetching posts for page ${pageNumber}...`);
+
   try {
-    // Here you would typically make an API call to save the story
-    console.log('Submitting story:', formData);
+    const response = await fetchEncrypted<{ posts: UserPost[], hasMorePages: boolean }>(
+        `/api/posts?page=${pageNumber}`,
+        { method: 'GET' } // GET 請求通常沒有 payload
+    );
 
-    // Mock story creation
-    const newStory = {
-      id: Date.now(),
-      username: currentUser.value.username,
-      userImage: `https://picsum.photos/100/100?random=${stories.value.length + 1}`,
-      image: URL.createObjectURL(formData.get('image') as File),
-    };
+    console.log('API Response:', response);
 
-    // request to save the post to the server
-    // TODO:　request to save the post to the server
+    if (response && response.posts && Array.isArray(response.posts)) {
+      const newPosts = response.posts.map(post => ({
+        ...post,
+        likes: post.likes ?? 0, // <--- 提供默認值
+        isLiked: post.isLiked ?? false, // <--- 提供默認值        
+        date: new Date(post.date), // 確保 date 是 Date 對象
+        comments: post.comments.map(comment => ({
+            ...comment,
+            date: new Date(comment.date) // 確保評論日期也是 Date 對象
+        }))
+      }));
 
-    stories.value.unshift(newStory);
-  } catch (error) {
-    console.error('Error creating story:', error);
+      if (pageNumber === 1) {
+        displayedPosts.value = newPosts; // 首次加載替換
+      } else {
+        displayedPosts.value = [...displayedPosts.value, ...newPosts]; // 追加新貼文
+      }
+      hasMore.value = response.hasMorePages ?? (newPosts.length > 0); // 更新是否有更多頁面
+      page.value = pageNumber + 1; // 準備加載下一頁
+      console.log('Posts loaded successfully. Total:', displayedPosts.value.length, 'Has more:', hasMore.value);
+    } else {
+      console.warn('No posts found or invalid response structure.');
+      hasMore.value = false; // 沒有更多數據
+    }
+  } catch (err: any) {
+    console.error('Error fetching posts:', err);
+    error.value = err.data?.message || 'Failed to load posts. Please try again.';
+    // 可以考慮在多次失敗後停止嘗試 hasMore.value = false;
+  } finally {
+    isLoading.value = false;
   }
 };
 
+// Add new methods for handling submissions
+const handleStorySubmit = async (formData: FormData) => {
+    isLoading.value = true; // 可以添加一個特定的加載狀態
+    error.value = null;
+    console.log('Submitting story...');
+
+    try {
+        // **同樣，假設文件直傳，不加密**
+        const newStory = await $fetch<IStory>('/api/stories', { // 假設端點是 /api/stories
+            method: 'POST',
+            headers: {
+                ...getAuthHeaders(),
+            },
+            body: formData,
+        });
+
+        if (newStory) {
+            // 假設 API 返回了創建的 Story 對象
+            stories.value.unshift(newStory); // 添加到列表頂部
+            showCreateStory.value = false; // 關閉模態框
+            console.log('Story created successfully:', newStory);
+        }
+    } catch (err: any) {
+        console.error('Error creating story:', err);
+        alert(`Failed to create story: ${err.data?.message || 'Unknown error'}`);
+        error.value = err.data?.message || 'Failed to create story.';
+    } finally {
+        isLoading.value = false;
+    }
+};
+
 const handlePostSubmit = async (formData: FormData) => {
+  isLoading.value = true; // 可以添加一個特定的加載狀態
+  error.value = null;
+  console.log('Submitting post...');  
   try {
+    // FormData 不能直接 JSON.stringify 加密，需要後端支持 multipart/form-data
+    // 如果後端只接受 JSON，需要先上傳文件獲取 URL，再將 URL 和其他文本數據加密發送
+    // **假設後端 /api/posts 能處理 multipart/form-data 且不需要加密文件本身**
+    // **如果後端要求加密所有內容，文件上傳會變得非常複雜**
+    // **這裡暫時假設文件直傳，文本內容不加密 (或需要單獨的加密端點)**
+
+    // **方案 A: 文件直傳 (不加密)**
+    // const newPost = await $fetch<UserPost>('/api/posts', {
+    //   method: 'POST',
+    //   headers: { ...getAuthHeaders() }, // 只加認證
+    //   body: formData,
+    // });
+
+    // **方案 B: 假設需要加密文本，文件另外處理 (非常規)**
+    // 1. 上傳文件到 /api/upload (假設) -> 獲取 imageURLs
+    // 2. 加密 { title, content, tags, imageURLs }
+    // const payload = { title: formData.get('title'), content: formData.get('content'), /* ... */ };
+    // const newPost = await fetchEncrypted<UserPost>('/api/posts/encrypted', { // 假設有加密端點
+    //     method: 'POST'
+    // }, payload);
+
+    // **暫時恢復為不加密的 $fetch，因為加密 FormData 很複雜**
+    // **你需要根據後端實際情況決定如何處理文件上傳和加密**
+    
+    
     // Here you would typically make an API call to save the post
-    console.log('Submitting post:', formData);
+    //console.log('Submitting post:', formData);
 
     // Mock post creation
-    const newPost:UserPost = {
-      id: Date.now(),
-      icon: currentUser.value.icon,
-      username: currentUser.value.username,
-      userID: currentUser.value.userID,
-      date: new Date(),
-      title: formData.get('title')?.toString()??"",
-      content: formData.get('content')?.toString()??"",
-      images: [URL.createObjectURL(formData.get('image') as File)],
-      tags: [],
-      likes: 0,
-      commentCount: 0,
-      isLiked: false,
-      showComments: false,
-      newComment: '',
-      comments: []
-    };
+    const newPost = await $fetch<UserPost>('/api/posts', {
+      method: 'POST',
+      headers: {
+        ...getAuthHeaders(), // 添加認證標頭
+        // 'Content-Type': 'multipart/form-data' // 通常 $fetch 會自動處理
+      },
+      body: formData, // 直接傳遞 FormData
+    });
 
-
+    if (newPost) {
+        newPost.date = new Date(newPost.date); // 轉換日期
+        newPost.comments = newPost.comments?.map(c => ({...c, date: new Date(c.date)})) || [];
+        displayedPosts.value.unshift(newPost);
+        showCreatePost.value = false; // 關閉模態框
+        console.log('Post created successfully:', newPost);
+    }
     // request to save the post to the server
     // TODO:　request to save the post to the server
 
-    displayedPosts.value.unshift(newPost);
-  } catch (error) {
-    console.error('Error creating post:', error);
+  } catch (err: any) {
+    console.error('Error creating post:', err);
+    // 可以在模態框內顯示錯誤，或使用全局錯誤提示
+    alert(`Failed to create post: ${err.data?.message || 'Unknown error'}`);
+    error.value = err.data?.message || 'Failed to create post.';
+  } finally {
+    isLoading.value = false;
   }
 };
 
 // Add share function
-const sharePost = (post:any) => {
-  shareModalPost.value = post;
-};
+const sharePost = (post: UserPost) => { shareModalPost.value = post; };
+
+
 </script>
 
 <style scoped>
