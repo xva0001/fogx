@@ -391,155 +391,146 @@
     }
   }
   
-  const passwordStrengthClass = ref('');
-  const passwordStrengthText = ref('');
-  const passwordStrengthWidth = ref('');
-  
-  function checkPasswordStrength() {
-    console.log('Password strength check triggered');
-  
-    let strength = 0;
-    let hasLowercase = false;
-    let hasUppercase = false;
-    let hasNumber = false;
-    let hasSymbol = false;
-  
-    if (password.value.length > 0) {
-      console.log('Password length:', password.value.length);
-      
-      if (password.value.length > 10) {
-        strength += 1;
-      }
-      for (let i = 0; i < password.value.length; i++) {
-        if (password.value[i].match(/[a-z]/)) {
-          hasLowercase = true;
-        } else if (password.value[i].match(/[A-Z]/)) {
-          hasUppercase = true;
-        } else if (password.value[i].match(/[0-9]/)) {
-          hasNumber = true;
-        } else if (password.value[i].match(/[^a-zA-Z0-9]/)) {
-          hasSymbol = true;
-        }
-      }
-  
-      if (hasLowercase) strength += 1;
-      if (hasUppercase) strength += 1;
-      if (hasNumber) strength += 1;
-      if (hasSymbol) strength += 1;
-  
-      console.log('Password strength:', strength);
-  
-      if (strength === 1) {
-        animateStrengthMeter('bg-red-500', 'Risk', '25%');
-      } else if (strength === 2) {
-        animateStrengthMeter('bg-yellow-500', 'Medium', '50%');
-      } else if (strength === 3) {
-        animateStrengthMeter('bg-green-500', 'Good', '75%');
-      } else if (strength >= 4) {
-        animateStrengthMeter('bg-green-500', 'Strong', '100%');
-      }
-    } else {
-      animateStrengthMeter('', '', '0%');
+const passwordStrengthClass = ref('');
+const passwordStrengthText = ref('');
+const passwordStrengthWidth = ref('');
+
+function checkPasswordStrength() {
+  console.log('Password strength check triggered');
+
+  let strength = 0;
+  let hasLowercase = false;
+  let hasUppercase = false;
+  let hasNumber = false;
+  let hasSymbol = false;
+
+  if (password.value.length > 0) {
+    console.log('Password length:', password.value.length);
+
+    if (password.value.length > 10) strength += 1;
+    for (let i = 0; i < password.value.length; i++) {
+      if (password.value[i].match(/[a-z]/)) hasLowercase = true;
+      else if (password.value[i].match(/[A-Z]/)) hasUppercase = true;
+      else if (password.value[i].match(/[0-9]/)) hasNumber = true;
+      else if (password.value[i].match(/[^a-zA-Z0-9]/)) hasSymbol = true;
     }
-  
-    setTimeout(() => {
-      console.log('Updated strength class:', passwordStrengthClass.value);
-      console.log('Updated strength text:', passwordStrengthText.value);
-      console.log('Updated strength width:', passwordStrengthWidth.value);
-    }, 250);
+
+    if (hasLowercase) strength += 1;
+    if (hasUppercase) strength += 1;
+    if (hasNumber) strength += 1;
+    if (hasSymbol) strength += 1;
+
+    console.log('Password strength:', strength);
+
+    if (strength === 1) {
+      animateStrengthMeter('bg-red-500', 'Risk', '25%');
+    } else if (strength === 2) {
+      animateStrengthMeter('bg-yellow-500', 'Medium', '50%');
+    } else if (strength === 3) {
+      animateStrengthMeter('bg-green-500', 'Good', '75%');
+    } else if (strength >= 4) {
+      animateStrengthMeter('bg-green-500', 'Strong', '100%');
+    }
+  } else {
+    animateStrengthMeter('', '', '0%');
   }
-  
-  const animateStrengthMeter = (newClass: string, newText: string, newWidth: string) => {
-    const strengthMeter = document.querySelector('.strength-meter') as HTMLElement | null;
-    if (strengthMeter) {
-      let currentWidth = parseInt(strengthMeter!.style.width || '0');
-      let targetWidth = parseInt(newWidth.replace('%', ''));
-      let duration = 500;
-      let startTime = performance.now();
-  
-      function animateWidth(timestamp: number) {
-        let progress = (timestamp - startTime) / duration;
-        if (progress > 1) progress = 1;
-        let width = currentWidth + (targetWidth - currentWidth) * progress;
-        strengthMeter!.style.width = `${width}%`;
-        
-        if (progress < 1) {
-          requestAnimationFrame(animateWidth);
-        } else {
-          strengthMeter!.style.width = newWidth;
-        }
-      }
-      requestAnimationFrame(animateWidth);
-  
-      setTimeout(() => {
-        passwordStrengthClass.value = newClass;
-        passwordStrengthText.value = newText;
-      }, duration / 2);
-    }
-  };
-  
-  
-  const generateStrongPassword = () => {
-    const lowercase = 'abcdefghijklmnopqrstuvwxyz';
-    const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    const numbers = '0123456789';
-    const symbols = '!@#$%^&*()_+~`|}{[]:;?><,./-=';
-    
-    let passwordValue = '';
-    passwordValue += getRandomChar(lowercase);
-    passwordValue += getRandomChar(uppercase);
-    passwordValue += getRandomChar(numbers);
-    passwordValue += getRandomChar(symbols);
-  
-    for (let i = 0; i < 14; i++) {
-      const charType = getRandomInt(4);
-      switch (charType) {
-        case 0:
-          passwordValue += getRandomChar(lowercase);
-          break;
-        case 1:
-          passwordValue += getRandomChar(uppercase);
-          break;
-        case 2:
-          passwordValue += getRandomChar(numbers);
-          break;
-        case 3:
-          passwordValue += getRandomChar(symbols);
-          break;
+
+  setTimeout(() => {
+    console.log('Updated strength class:', passwordStrengthClass.value);
+    console.log('Updated strength text:', passwordStrengthText.value);
+    console.log('Updated strength width:', passwordStrengthWidth.value);
+  }, 250);
+}
+
+const animateStrengthMeter = (newClass: string, newText: string, newWidth: string) => {
+  const strengthMeter = document.querySelector('.strength-meter') as HTMLElement | null;
+  if (strengthMeter) {
+    const currentWidth = passwordStrengthWidth.value || '0%';
+    if (currentWidth === newWidth) return;
+    let startWidth = parseInt(currentWidth.replace('%', '')) || 0;
+    let targetWidth = parseInt(newWidth.replace('%', ''));
+    let duration = 500;
+    let startTime = performance.now();
+
+    function animateWidth(timestamp: number) {
+      if (!strengthMeter) return;
+
+      let progress = (timestamp - startTime) / duration;
+      if (progress > 1) progress = 1;
+      let width = startWidth + (targetWidth - startWidth) * progress;
+      strengthMeter.style.width = `${width}%`;
+
+      if (progress < 1) {
+        requestAnimationFrame(animateWidth);
+      } else {
+        strengthMeter.style.width = newWidth;
+        passwordStrengthWidth.value = newWidth;
       }
     }
-  
-    passwordValue = shuffleString(passwordValue);
-    passwordValue = passwordValue.substring(0, 20);
-  
-    console.log('Generated Password:', passwordValue);
-    password.value = passwordValue;
-    confirmPassword.value = passwordValue;
-  
-    checkPasswordStrength();
-  };
-  
-  const getRandomChar = (str: string): string => {
-    return str.charAt(Math.floor(Math.random() * str.length));
-  };
-  
-  const getRandomInt = (max: number): number => {
-    return Math.floor(Math.random() * max);
-  };
-  
-  const shuffleString = (str: string): string => {
-    let arr = str.split('');
-    let n = arr.length;
-  
-    for(let i = n - 1; i > 0; i--) {
-      let j = Math.floor(Math.random() * (i + 1));
-      let tmp = arr[i];
-      arr[i] = arr[j];
-      arr[j] = tmp;
+    requestAnimationFrame(animateWidth);
+
+    setTimeout(() => {
+      passwordStrengthClass.value = newClass;
+      passwordStrengthText.value = newText;
+    }, duration / 2);
+  }
+};
+
+
+const generateStrongPassword = () => {
+  const lowercase = 'abcdefghijklmnopqrstuvwxyz';
+  const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const numbers = '0123456789';
+  const symbols = '!@#$%^&*()_+~`|}{[]:;?><,./-=';
+
+  let passwordValue = '';
+  passwordValue += getRandomChar(lowercase);
+  passwordValue += getRandomChar(uppercase);
+  passwordValue += getRandomChar(numbers);
+  passwordValue += getRandomChar(symbols);
+
+  for (let i = 0; i < 14; i++) {
+    const charType = getRandomInt(4);
+    switch (charType) {
+      case 0:
+        passwordValue += getRandomChar(lowercase);
+        break;
+      case 1:
+        passwordValue += getRandomChar(uppercase);
+        break;
+      case 2:
+        passwordValue += getRandomChar(numbers);
+        break;
+      case 3:
+        passwordValue += getRandomChar(symbols);
+        break;
     }
-    return arr.join('');
-  };
-  
-  const showPassword = ref(false);
-  const showConfirmPassword = ref(false);
+  }
+
+  passwordValue = shuffleString(passwordValue).substring(0, 20);
+  console.log('Generated Password:', passwordValue);
+  password.value = passwordValue;
+  confirmPassword.value = passwordValue;
+  checkPasswordStrength();
+};
+
+const getRandomChar = (str: string) => str.charAt(Math.floor(Math.random() * str.length));
+const getRandomInt = (max: number) => Math.floor(Math.random() * max);
+const shuffleString = (str: string) => {
+  let arr = str.split('');
+  for (let i = arr.length - 1; i > 0; i--) {
+    let j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr.join('');
+};
+
+const showPassword = ref(false);
+const showConfirmPassword = ref(false);
+
+watch(showPassword, () => {
+});
+watch(showConfirmPassword, () => {
+});
+
   </script>
