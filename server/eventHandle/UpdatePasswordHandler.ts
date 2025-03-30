@@ -73,6 +73,9 @@ export const updatePasswordEvent = async (event: H3Event) => {
                 message: "Invalid or expired Paseto token"
             }
         }
+        if (d_rq.old_hash384_password==d_rq.new_hash384_password ||d_rq.old_hash3_256_password==d_rq.new_hash3_256_password) {
+            return InvalidError("same hash value")
+        }
         //----------------------------------------------------------------------------------------------
 
         // Connect to all configured MongoDB databases
