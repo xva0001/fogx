@@ -10,9 +10,9 @@ import { convertMsToSecString } from '~/shared/convertMssToSecond';
 *  openssl pkey -in private_key.pem -pubout -out public_key.pem
  */
 const appConfig = useAppConfig();
-const generatePaseto =async(paylaod:any)=>{
+const generatePaseto =async(paylaod:any,ms? : number)=>{
     const  token = await V4.sign(paylaod,keyGetterForPaseto().private,{
-        expiresIn : convertMsToSecString(appConfig.verification.tokenvaildTime),
+        expiresIn : convertMsToSecString(ms || appConfig.verification.tokenvaildTime),
         kid : 'paseto'
     })
     return token

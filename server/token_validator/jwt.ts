@@ -1,11 +1,12 @@
 import { SignJWT, importJWK, jwtVerify } from "jose"
 import { convertMsToSecString } from "~/shared/convertMssToSecond";
 import { keyGetterForJwt } from "../key/keyGetterForJwt";
+import { number } from "zod";
 
 const appConfig = useAppConfig();
 
 
-async function generateJWT(payload: any) {
+async function generateJWT(payload: any,ms? :number) {
     const jwt = await new SignJWT(payload)
         .setProtectedHeader({ alg: 'EdDSA' })
         //opt
@@ -13,7 +14,7 @@ async function generateJWT(payload: any) {
         //.setIssuer(appConfig.domain)
         //.setAudience(targetdomain)
         //end opt
-        .setExpirationTime(convertMsToSecString(appConfig.verification.tokenvaildTime))
+        .setExpirationTime(convertMsToSecString(ms || appConfig.verification.tokenvaildTime))
         .sign(await importJWK(keyGetterForJwt().privJWK,"EdDSA"))
     return jwt
 }

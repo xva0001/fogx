@@ -51,7 +51,8 @@ export default defineAppConfig({
          */
         jwt: true,
         paseto:true,
-        tokenvaildTime : 120_000 //two mins
+        tokenvaildTime : 120_000, //two mins,
+        tokenVaildTime_loged : 1200_000 
 
     }
 
