@@ -29,6 +29,7 @@
     "aes-js": "^3.1.2",
     "async-mutex": "^0.5.0",
     "consola": "^3.4.0",
+    "cropperjs": "^2.0.0",
     "easy-shamir-secret-sharing": "^1.0.10",
     "elliptic": "^6.6.1",
     "esbuild": "^0.25.0",
@@ -45,10 +46,13 @@
     "shamir-secret-sharing": "^0.0.4",
     "uuid": "^11.1.0",
     "vue": "latest",
+    "vue-advanced-cropper": "^2.8.9",
+    "vue-cropper": "^0.6.5",
     "vue-router": "latest",
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@types/vue-cropperjs": "^4.1.6",
     "daisyui": "^4.12.22"
   }
 }

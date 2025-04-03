@@ -21,6 +21,7 @@ import {
 import { Mutex } from "async-mutex";
 import { getCorrectUser } from "../DataFixer/UserInformationFixer";
 import { cleanMongoObject } from "../utils/cleanObject";
+import SignMessage from "~/shared/Request/signMessage";
 
 // 定義解密後請求體的 Zod Schema
 const I2FARequestSchema = z.object({
@@ -94,7 +95,7 @@ export default defineEventHandler(async (event: H3Event): Promise<EncryptedRes |
         // db 
         const dbNames = useAppConfig().db.conntion.conn_string_env_arr;
         //tokenVaildTime_loged : 1200_000 
-        const tokenTime :number = useAppConfig().verification.tokenVaildTime_loged
+        const tokenTime: number = useAppConfig().verification.tokenVaildTime_loged
 
         await dbConnector.dbConnsOpen(dbNames);
         const connections = dbConnector.getDbConnections();
@@ -109,6 +110,7 @@ export default defineEventHandler(async (event: H3Event): Promise<EncryptedRes |
         const fetchMutex = new Mutex();
         const userArr: (IUser | undefined)[] = []
         const problemInt: number[] = []
+
 
         await Promise.all(connections.map(async (conn, index) => {
             try {
@@ -170,8 +172,8 @@ export default defineEventHandler(async (event: H3Event): Promise<EncryptedRes |
         if (isValidCode) {
             // 驗證成功: 生成新 Token
 
-            const newJwt = await generateJWT({ CUUID: decryptedData.CUUID, login: "completed" },tokenTime); // 更新 claim
-            const newPaseto = await generatePaseto({ CUUID: decryptedData.CUUID, login: "completed" },tokenTime); // 更新 claim
+            const newJwt = await generateJWT({ CUUID: decryptedData.CUUID, login: "completed" }, tokenTime); // 更新 claim
+            const newPaseto = await generatePaseto({ CUUID: decryptedData.CUUID, login: "completed" }, tokenTime); // 更新 claim
 
             responsePayload = {
                 success: true,
@@ -187,7 +189,6 @@ export default defineEventHandler(async (event: H3Event): Promise<EncryptedRes |
             corr.backupCode = typeof corr.backupCode === "string"
                 ? (corr.backupCode as string).split(",")
                 : corr.backupCode
-
             //not use
             // corr.roles = typeof corr.roles === "string"
             // ? (corr.roles as string).split(",") as Role[]
@@ -195,33 +196,158 @@ export default defineEventHandler(async (event: H3Event): Promise<EncryptedRes |
             //get signedPacket
             console.log(corr);
 
-            let packets = await createSignedPackets(corr.CUUID, corr.Email, corr.sha3_256, corr.sha3_384, corr.backupCode, corr.username, keyShares, corr.createdDate)
-            console.log("test : ", packets);
 
-            await Promise.all(connections.map(async (conn, index) => {
-                try {
-                    const userModel = conn.model<IUser>("user", userSchema);
-                    //wrong update : 
-                    //await userModel.updateOne({ CUUID: decryptedData!.CUUID }, { $set: { lastestLoginDate: updateDate, updatedDate: updateDate } });                        
-                    //this must be update, not all update
-                    const packet = packets[index]
-                    let resDB = await userModel.updateOne({ CUUID: corr.CUUID }, {
-                        lastestLoginDate: packet.lastestLoginDate,
-                        updatedDate: packet.updatedDate,
-                        objHash: packet.objHash,
-                        objSign: packet.objSign
-                    })
+            let totalConnections = dbConnector.getDbConnections().length
 
-                    //if no data
-                    if (resDB.modifiedCount == 0) {
-                        await new userModel(packet).save()
+            let threshold = getThreshold()
+            // Update key share with improved rollback mechanism
+            let ks = await secrets.share(reconstructedKey, getSharePartNum(), threshold);
+            let packets = await createSignedPackets(
+                corr.CUUID,
+                corr.Email,
+                corr.sha3_256,
+                corr.sha3_384,
+                corr.backupCode,
+                corr.username,
+                ks,
+                corr.createdDate
+            );
+
+            console.log("Generated packets:", packets);
+
+            // Phase 1: Backup original data from all connections
+            const backups: { connName: string; originalData: any }[] = [];
+            try {
+                // First backup all original data
+                await Promise.all(connections.map(async (conn) => {
+                    try {
+                        const userModel = conn.model<IUser>("user", userSchema);
+                        const originalData = await userModel.findOne({ CUUID: corr.CUUID }).lean();
+                        if (!originalData) {
+                            throw new Error(`Original data not found for CUUID: ${corr.CUUID}`);
+                        }
+                        backups.push({ connName: conn.name, originalData });
+                    } catch (error) {
+                        console.error(`Failed to backup data from ${conn.name}:`, error);
+                        throw error; // Abort if backup fails
                     }
-                } catch (updateError) {
-                    console.error(`Failed to update last login date on DB ${conn.name}:`, updateError);
-                    // 記錄錯誤
+                }));
+                const successfulBackups = backups.length;
+                if (successfulBackups < threshold) {
+                    console.error(`Backup phase failed: Only ${successfulBackups}/${threshold} successful backups`);
+                    throw new Error(`Insufficient backups (${successfulBackups}) for threshold (${threshold})`);
                 }
-            }));
+                console.log(`Backup phase completed: ${successfulBackups}/${totalConnections} successful`);
+
+
+
+
+                // Phase 2: Perform updates with verification
+                const errors: { connName: string; error: Error }[] = [];
+
+                await Promise.all(connections.map(async (conn, index) => {
+                    try {
+                        const userModel = conn.model<IUser>("user", userSchema);
+                        const packet = packets[index];
+
+                        // Update or insert the document
+                        const updateResult = await userModel.updateOne(
+                            { CUUID: corr.CUUID },
+                            { $set: packet },
+                            { upsert: true, strict: false }
+                        );
+
+                        // Verification
+                        const updatedDoc = await userModel.findOne({ CUUID: corr.CUUID }).lean();
+                        if (!updatedDoc) {
+                            throw new Error("Document not found after update");
+                        }
+
+                        const cleanObj = cleanMongoObject(updatedDoc) as IUser;
+                        if (cleanObj == null) {
+                            throw new Error("db data lost ")
+                        }
+                        const cal_hash = sha3_256_userHash(cleanObj);
+
+                        const expected_hash = sha3_256_userHash(packet);
+
+                        if (cal_hash !== expected_hash) {
+                            console.error(`Hash mismatch for ${conn.name}:`, {
+                                calculated: cal_hash,
+                                expected: expected_hash,
+                                cleanObj,
+                                packet
+                            });
+                            throw new Error(`Hash verification failed for ${conn.name}`);
+                        }
+
+                        console.log(`Successfully updated ${conn.name}`);
+
+                    } catch (error) {
+                        console.error(`Failed to update on DB ${conn.name}:`, error);
+                        errors.push({ connName: conn.name, error: error as Error });
+                    }
+                }));
+
+
+                // 檢查更新階段是否滿足閾值
+                const successfulUpdates = totalConnections - errors.length;
+                if (successfulUpdates < threshold) {
+                    console.error(`❌ Update phase failed: Only ${successfulUpdates}/${threshold} successful updates`);
+                    console.log("⚠️ Proceeding to Phase 3: Rollback");
+                } else {
+                    console.log(`✅ Update phase completed: ${successfulUpdates}/${totalConnections} successful`);
+                    console.log("🏁 All operations completed successfully");
+                    //return; // 成功完成，直接返回
+                }
+
+
+
+
+                // Phase 3: Rollback if any errors occurred
+                if (errors.length > 0) {
+                    console.error("⚠️ Errors occurred during update, initiating rollback...");
+                    const rollbackTargets = backups.filter(backup => 
+                        !errors.some(e => e.connName === backup.connName)
+                    );
+                    const rollbackResults = await Promise.all(rollbackTargets.map(async (backup) => {
+                        try {
+                            const conn = connections.find(c => c.name === backup.connName);
+                            if (!conn) {
+                                console.error(`Connection not found: ${backup.connName}`);
+                                return { connName: backup.connName, success: false };
+                            }
+                    
+                            const userModel = conn.model<IUser>("user", userSchema);
+                            await userModel.updateOne(
+                                { CUUID: corr.CUUID },
+                                { $set: backup.originalData },
+                                { strict: false }
+                            );
+                            return { connName: backup.connName, success: true };
+                        } catch (rollbackError) {
+                            console.error(`Rollback failed for ${backup.connName}:`, rollbackError);
+                            return { connName: backup.connName, success: false };
+                        }
+                    }));
+                    const failedRollbacks = rollbackResults.filter(r => !r.success);
+                    if (failedRollbacks.length > 0) {
+                        console.error("Critical: Failed to rollback these connections:", failedRollbacks);
+                        throw new Error(`Update failed and rollback incomplete for ${failedRollbacks.length} connections`);
+                    }
+
+                    throw new Error(`Update failed, rollback completed for ${rollbackResults.length} connections`);
+                }
+
+                console.log("✅ All update operations completed successfully");
+            } catch (error) {
+                console.error("Critical error in key share update process:", error);
+                throw error; // Re-throw for upper level handling
+
+            }
+
             //end part database
+
 
         } else {
             // 驗證失敗
