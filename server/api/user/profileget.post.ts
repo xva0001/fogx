@@ -21,6 +21,8 @@ const profileRequestSchema = z.object({
 export default defineEventHandler(async (event) => {
   // 獲取並驗證請求體
   const body = await readBody(event)
+  console.log(body);
+  
 
   let req = EncryptReqShema.safeParse(body)
   if (!req.success) {
@@ -33,8 +35,7 @@ export default defineEventHandler(async (event) => {
   let shared = calSharedKey(req.data.pubkey, process.env.ECC_PRIVATE_KEY!)
 
   let decrypt = await RequestEncryption.decryptMessage(req.data.encryptedMessage,shared,req.data.iv)
-
-  const validatedData = profileRequestSchema.safeParse(decrypt)
+  const validatedData = profileRequestSchema.safeParse(JSON.parse(decrypt))
   
   if (!validatedData.success) {
     throw createError({
@@ -113,6 +114,8 @@ export default defineEventHandler(async (event) => {
       // 返回前端所需的用戶數據
       let encrypted = RequestEncryption.encryptMessage(JSON.stringify(packet),shared)
 
+      console.log("success send data");
+      
       return encrypted
     } finally {
       await dbConnector.dbConnsClose()

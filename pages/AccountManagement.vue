@@ -512,10 +512,15 @@ const user = ref({
   icon: '',
   username: '',
   email: '',
-  phone: '',
-  bio: '',
   twoFactorEnabled: true
 });
+
+let orgUser ={
+  icon: '',
+  username: '',
+  email: '',
+  twoFactorEnabled: true
+}
 
 // Handle avatar upload
 const handleAvatarUpload = async (event: Event) => {
@@ -801,13 +806,10 @@ const logout = () => {
 // Fetch user data
 const fetchUserData = async () => {
   try {
-    if (import.meta.dev) {
-      return
-    }
     const jwt = sessionStorage.getItem('jwt');
     const paseto = sessionStorage.getItem('paseto');
 
-    if (!jwt || !paseto || !import.meta.dev) {
+    if (!jwt || !paseto) {
       console.error('Authentication tokens not found');
       navigateTo('/login');
       return;
@@ -816,8 +818,6 @@ const fetchUserData = async () => {
       jwt: jwt,
       paseto: paseto
     }
-
-
     let servPubKey = await $fetch("/api/ECDHpubkey")
     //gen key
     let pair = genKeyCurve25519()
@@ -830,21 +830,23 @@ const fetchUserData = async () => {
 
     encrypt["pubkey"] = pair.getPublic("hex")
 
+    console.log(encrypt);
 
 
-    const response: any = await $fetch('/api/user/profile', {
-      method: "GET",
+    let response: any = await $fetch('/api/user/profileget', {
+      method: "POST",
       body: JSON.stringify(encrypt)
-    }).then((res: any) => RequestEncryption.decryptMessage(res.encryptedMessage, shared, encrypt.iv));
+    }).then((res: any) => RequestEncryption.decryptMessage(res.encryptedMessage, shared, res.iv));
+    console.log(response);
+    console.log(typeof response);
+    response = JSON.parse(response)
+    //response = 
     if (response.success && response.user) {
-      // Set user data
-      user.value = {
-        ...user.value,
-        ...response.user,
-        // If some fields are not provided by backend, keep default values
-        //phone: response.user.phone || user.value.phone,
-        //bio: response.user.bio || user.value.bio
-      };
+      //console.log(response);
+      console.log(response);
+        Object.assign(user.value, response.user);
+        Object.assign(orgUser, response.user);
+
 
       // Also fetch other data, such as recent login sessions
     } else {
