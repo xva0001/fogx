@@ -29,7 +29,20 @@ export default defineNuxtConfig(
       host:"127.0.0.1"
     },
     content:{
-      
+      build: {
+        markdown: {
+          highlight: {
+            theme: {
+              // Default theme (same as single string)
+              default: 'github-light',
+              // Theme used if `html.dark`
+              dark: 'github-dark',
+              // Theme used if `html.sepia`
+              sepia: 'monokai'
+            }
+          }
+        }
+      } 
     }
     ,
 

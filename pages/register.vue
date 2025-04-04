@@ -86,6 +86,9 @@
               </div>
               
             </div>
+            <div class="flex items-center">
+              <button @click.prevent="newOpenWin" ><Icon name="bi:question"/><span>see details</span></button>
+            </div>
           </div>
           <div>
             <label for="confirmPassword" class="block mb-1">Confirm Password</label>
@@ -582,5 +585,13 @@ const shuffleString = (str: string) => {
 // });
 // watch(showConfirmPassword, () => {
 // });
+
+const  newOpenWin =  async ()=>{
+  await navigateTo("/passwordStandard",{
+    open:{
+      target:"_blank"
+    }
+  })
+}
 
 </script>
