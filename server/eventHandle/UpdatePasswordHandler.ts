@@ -18,6 +18,7 @@ import { generatePaseto, verifyToken } from "../token_validator/paseto"
 import { z } from "zod"
 import IPasswordUpdateRequestSchema from "../request_sheme/handleUserInfoUpdate/IPasswordUpdateRequestSchema"
 import { getCorrectUser } from "../DataFixer/UserInformationFixer"
+import { updateUser } from "../dbOperation/updateUser"
 const { sha3_256, sha3_384 } = pkg
 
 
@@ -153,78 +154,27 @@ export const updatePasswordEvent = async (event: H3Event) => {
          * @param newHash384 - New SHA3-384 hash
          * @param userArr - Array of user data from verification
          */
-        async function updatePassword(CUUID: string, newHash256: string, newHash384: string, userArr: (IUser | undefined)[], problemInt: number[]) {
+        async function updatePassword(newHash256: string, newHash384: string, userArr: (IUser | undefined)[], problemInt: number[]) {
 
             let correctUser: IUser = await getCorrectUser(userArr,problemInt)
             correctUser.backupCode = typeof correctUser.backupCode === "string" 
             ? (correctUser.backupCode as string).split(",") 
             : correctUser.backupCode;
-            // Generate 2FA key shares once before the loop
-            const share_arr_for_2fa_key = await secrets.share(
-                correctUser.keyOf2FA,
-                getSharePartNum(),
-                getThreshold()
-            )
-            const packets = await createSignedPackets(
-                correctUser.CUUID,
-                correctUser.Email,
-                newHash256,
-                newHash384,
-                correctUser.backupCode,
-                correctUser.username,
-                share_arr_for_2fa_key,
-                correctUser.createdDate,
-                new Date(),
-                correctUser.lastestLoginDate
-            )
-            console.log(packets);
-            
-            await Promise.all(getAllConns().map(async(conn,index)=>{
-                const userModel = conn.model("user",userSchema)
-
-                const packet = packets[index]
-                if (!packet) {
-                    return
-                }
-                //todo : wait to activate !
-                return
-                let resdb = await userModel.updateOne({CUUID : correctUser.CUUID},{
-                    $set :{
-                        Email : packet.Email,
-                        sha3_256 : packet.sha3_256,
-                        sha3_384:packet.sha3_384 ,
-                        createdDate : packet.createdDate,
-                        updatedDate : packet.updatedDate,
-                        lastestLoginDate : packet.lastestLoginDate ,
-                        keyOf2FA:packet.keyOf2FA,
-                        backupCode : packet.backupCode as string[],
-                        username:packet.username,
-                        objHash:packet.objHash,
-                        objSign:packet.objSign
-
-                    },
-                    
-                },{strict:false})//
-                if (resdb.modifiedCount===0) {
-                    await new userModel(packet).save()
-                }
-                
-            }))
+            correctUser.sha3_256 = newHash256
+            correctUser.sha3_384 = newHash384
+            let resDB = await updateUser(dbConnector,correctUser,correctUser.keyOf2FA,correctUser.lastestLoginDate)   
+            if (!resDB) {
+                throw new Error("update error")
+            }
         }
-
         // Update password in all databases
         await updatePassword(
-            d_rq.CUUID,
             d_rq.new_hash3_256_password,
             d_rq.new_hash384_password,
             verification.userArr,
             verification.problemInt
         )
 
-        return {
-            success : false ,
-            message : "testing"
-        }
         // Generate new tokens after password update
         const newJwt = await generateJWT({ CUUID: d_rq.CUUID, login: "completed" })
         const newPaseto = await generatePaseto({ CUUID: d_rq.CUUID, login: "completed" })

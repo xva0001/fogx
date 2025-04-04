@@ -22,6 +22,7 @@ import { Mutex } from "async-mutex";
 import { getCorrectUser } from "../DataFixer/UserInformationFixer";
 import { cleanMongoObject } from "../utils/cleanObject";
 import SignMessage from "~/shared/Request/signMessage";
+import { updateUser } from "../dbOperation/updateUser";
 
 // 定義解密後請求體的 Zod Schema
 const I2FARequestSchema = z.object({
@@ -196,156 +197,15 @@ export default defineEventHandler(async (event: H3Event): Promise<EncryptedRes |
             //get signedPacket
             console.log(corr);
 
-
-            let totalConnections = dbConnector.getDbConnections().length
-
-            let threshold = getThreshold()
-            // Update key share with improved rollback mechanism
-            let ks = await secrets.share(reconstructedKey, getSharePartNum(), threshold);
-            let packets = await createSignedPackets(
-                corr.CUUID,
-                corr.Email,
-                corr.sha3_256,
-                corr.sha3_384,
-                corr.backupCode,
-                corr.username,
-                ks,
-                corr.createdDate
-            );
-
-            console.log("Generated packets:", packets);
-
-            // Phase 1: Backup original data from all connections
-            const backups: { connName: string; originalData: any }[] = [];
             try {
-                // First backup all original data
-                await Promise.all(connections.map(async (conn) => {
-                    try {
-                        const userModel = conn.model<IUser>("user", userSchema);
-                        const originalData = await userModel.findOne({ CUUID: corr.CUUID }).lean();
-                        if (!originalData) {
-                            throw new Error(`Original data not found for CUUID: ${corr.CUUID}`);
-                        }
-                        backups.push({ connName: conn.name, originalData });
-                    } catch (error) {
-                        console.error(`Failed to backup data from ${conn.name}:`, error);
-                        throw error; // Abort if backup fails
-                    }
-                }));
-                const successfulBackups = backups.length;
-                if (successfulBackups < threshold) {
-                    console.error(`Backup phase failed: Only ${successfulBackups}/${threshold} successful backups`);
-                    throw new Error(`Insufficient backups (${successfulBackups}) for threshold (${threshold})`);
+                let  resDB = await updateUser(dbConnector,corr,reconstructedKey)
+                if (!resDB) {
+                    throw new Error("user update problem : in updateUser - unexception")
                 }
-                console.log(`Backup phase completed: ${successfulBackups}/${totalConnections} successful`);
-
-
-
-
-                // Phase 2: Perform updates with verification
-                const errors: { connName: string; error: Error }[] = [];
-
-                await Promise.all(connections.map(async (conn, index) => {
-                    try {
-                        const userModel = conn.model<IUser>("user", userSchema);
-                        const packet = packets[index];
-
-                        // Update or insert the document
-                        const updateResult = await userModel.updateOne(
-                            { CUUID: corr.CUUID },
-                            { $set: packet },
-                            { upsert: true, strict: false }
-                        );
-
-                        // Verification
-                        const updatedDoc = await userModel.findOne({ CUUID: corr.CUUID }).lean();
-                        if (!updatedDoc) {
-                            throw new Error("Document not found after update");
-                        }
-
-                        const cleanObj = cleanMongoObject(updatedDoc) as IUser;
-                        if (cleanObj == null) {
-                            throw new Error("db data lost ")
-                        }
-                        const cal_hash = sha3_256_userHash(cleanObj);
-
-                        const expected_hash = sha3_256_userHash(packet);
-
-                        if (cal_hash !== expected_hash) {
-                            console.error(`Hash mismatch for ${conn.name}:`, {
-                                calculated: cal_hash,
-                                expected: expected_hash,
-                                cleanObj,
-                                packet
-                            });
-                            throw new Error(`Hash verification failed for ${conn.name}`);
-                        }
-
-                        console.log(`Successfully updated ${conn.name}`);
-
-                    } catch (error) {
-                        console.error(`Failed to update on DB ${conn.name}:`, error);
-                        errors.push({ connName: conn.name, error: error as Error });
-                    }
-                }));
-
-
-                // 檢查更新階段是否滿足閾值
-                const successfulUpdates = totalConnections - errors.length;
-                if (successfulUpdates < threshold) {
-                    console.error(`❌ Update phase failed: Only ${successfulUpdates}/${threshold} successful updates`);
-                    console.log("⚠️ Proceeding to Phase 3: Rollback");
-                } else {
-                    console.log(`✅ Update phase completed: ${successfulUpdates}/${totalConnections} successful`);
-                    console.log("🏁 All operations completed successfully");
-                    //return; // 成功完成，直接返回
-                }
-
-
-
-
-                // Phase 3: Rollback if any errors occurred
-                if (errors.length > 0) {
-                    console.error("⚠️ Errors occurred during update, initiating rollback...");
-                    const rollbackTargets = backups.filter(backup => 
-                        !errors.some(e => e.connName === backup.connName)
-                    );
-                    const rollbackResults = await Promise.all(rollbackTargets.map(async (backup) => {
-                        try {
-                            const conn = connections.find(c => c.name === backup.connName);
-                            if (!conn) {
-                                console.error(`Connection not found: ${backup.connName}`);
-                                return { connName: backup.connName, success: false };
-                            }
-                    
-                            const userModel = conn.model<IUser>("user", userSchema);
-                            await userModel.updateOne(
-                                { CUUID: corr.CUUID },
-                                { $set: backup.originalData },
-                                { strict: false }
-                            );
-                            return { connName: backup.connName, success: true };
-                        } catch (rollbackError) {
-                            console.error(`Rollback failed for ${backup.connName}:`, rollbackError);
-                            return { connName: backup.connName, success: false };
-                        }
-                    }));
-                    const failedRollbacks = rollbackResults.filter(r => !r.success);
-                    if (failedRollbacks.length > 0) {
-                        console.error("Critical: Failed to rollback these connections:", failedRollbacks);
-                        throw new Error(`Update failed and rollback incomplete for ${failedRollbacks.length} connections`);
-                    }
-
-                    throw new Error(`Update failed, rollback completed for ${rollbackResults.length} connections`);
-                }
-
-                console.log("✅ All update operations completed successfully");
+                
             } catch (error) {
-                console.error("Critical error in key share update process:", error);
-                throw error; // Re-throw for upper level handling
-
+                console.log("user update problem : " + error);
             }
-
             //end part database
 
 
@@ -400,9 +260,7 @@ export default defineEventHandler(async (event: H3Event): Promise<EncryptedRes |
             // 如果連 shared key 都沒有，無法加密錯誤訊息
             return createError({ statusCode: 500, statusMessage: "Server Error", data: error.message || "Failed to process request." });
         }
-
     } finally {
-
         await dbConnector.dbConnsClose();
     }
 });
