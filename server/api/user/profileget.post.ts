@@ -95,9 +95,16 @@ export default defineEventHandler(async (event) => {
         })
       }
       
-      // 獲取正確的用戶數據
-      const user = await getCorrectUser(userArr, problemInt)
+      console.log("from org data",userArr[0]?.icon==null);
       
+      // 獲取正確的用戶數據
+      const user = await getCorrectUser(userArr, problemInt)    
+
+      
+
+      console.log("user Icon",user.icon=="");
+
+
       let packet = {
         success: true,
         user: {

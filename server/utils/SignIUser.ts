@@ -21,6 +21,7 @@ export async function createSignedPackets(
     createdDate? :Date,
     updatedDate? :Date,
     lastestLoginDate? :Date, 
+    icon?:string
 ): Promise<IUser[]> {
     let arr_packet: IUser[] = [];
     const date = new Date();
@@ -75,6 +76,11 @@ export async function createSignedPackets(
         if (!isValid_sign) {
             throw new Error("Signature verification failed");
         }
+
+        if (icon!=undefined) {
+            db_packet.icon = icon
+        }
+
 
         arr_packet.push(db_packet);
     }

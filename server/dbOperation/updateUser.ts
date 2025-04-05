@@ -3,7 +3,7 @@ import { secrets } from "easy-shamir-secret-sharing";
 import { IUser, userSchema } from "../db_data_schema/UserSchema";
 import { Mutex } from 'async-mutex';
 const userUpdateMutexes = new Map<string, Mutex>();
-export async function updateUser(dbConnector: MongoDBConnector, correctUser: IUser, reconstructedKey: string, lastestLoginDate?: Date): Promise<boolean> {
+export async function updateUser(dbConnector: MongoDBConnector, correctUser: IUser, reconstructedKey: string, lastestLoginDate?: Date,): Promise<boolean> {
 
 
 
@@ -32,7 +32,8 @@ export async function updateUser(dbConnector: MongoDBConnector, correctUser: IUs
             correctUser.username,
             ks,
             correctUser.createdDate, 
-            undefined, lastestLoginDate || undefined
+            undefined, lastestLoginDate || undefined,
+            correctUser.icon==""?undefined:correctUser.icon
         );
 
         console.log("Generated packets:", packets);

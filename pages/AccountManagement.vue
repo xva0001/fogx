@@ -853,8 +853,9 @@ const fetchUserData = async () => {
         //response.user.username
         response.user.icon = new Identicon(sha3_256(response.user.username),100).toString()
         //data:image/png;base64,
-        response.user.icon = "data:image/png;base64,"+response.user.icon 
+        
       }
+      response.user.icon = "data:image/png;base64,"+response.user.icon 
         Object.assign(user.value, response.user);
         Object.assign(orgUser, response.user);
 

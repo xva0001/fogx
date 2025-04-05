@@ -16,6 +16,7 @@ import { EncryptReqShema } from '~/shared/Request/IEncryptReq'
 import { calSharedKey } from '~/shared/useKeyFn'
 import InvalidError from '~/server/err/InvalidErr'
 import RequestEncryption from '~/shared/Request/requestEncrytion'
+import consola from 'consola'
 
 /**
  * 檢查字段是否已存在於其他用戶
@@ -186,10 +187,17 @@ export default defineEventHandler(async (event) => {
     console.log(userArr);
     
     console.log(typeof userArr[0]?.createdDate);
+
+    
+    
     
 
     // 獲取正確的用戶數據
     const user = await getCorrectUser(userArr, problemInt)
+
+    consola.info("correct user",user)
+    consola.info("array",userArr)
+
 
     // 標準化備份代碼格式
     const backupCodes = typeof user.backupCode === "string"
@@ -205,17 +213,20 @@ export default defineEventHandler(async (event) => {
       backupCode: backupCodes
       // 添加其他需要更新的字段
     }
+    console.log(updatedUser);
+    
 
     // 重新分割2FA密鑰
     const key = await secrets.combine(keyShares.slice(0, getThreshold()))
     const shareArr = await secrets.share(key, getSharePartNum(), getThreshold())
-    console.log(updatedUser);
+    console.log("updated User : ",updatedUser);
 
     // 使用 updateUser 函数更新所有数据库
-    return {
-      test :true,
-      success :false
-    }
+    // return {
+    //   test :true,
+    //   success :false,
+    //   message:"testing now"
+    // }
 
     const resDB = await updateUser(
       dbConnector,

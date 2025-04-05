@@ -58,7 +58,7 @@ export async function getCorrectUser(
         //     });
         // }
         if (excludeKeys.has(key)) continue;
-        console.log(key);
+        //console.log(key);
 
 
         // 判斷該欄位是否為 Date
@@ -99,7 +99,6 @@ export async function getCorrectUser(
         if (candidates.length === 0) {
             throw new Error(`No valid values for field ${String(key)}`);
         }
-
         // 统计多数值（优化版）
         const frequency = new Map<string, number>();
         let maxCount = 0;
@@ -137,7 +136,7 @@ export async function getCorrectUser(
     // 使用互斥锁进行密钥恢复
     const release = await globalMutex.acquire();
     try {
-        console.log(keyShares);
+        //console.log(keyShares);
 
         if (keyShares.length < 2) {
             throw new Error("Insufficient shares for secret recovery");
@@ -193,7 +192,7 @@ function isValidKey(key: string): boolean {
 
 /** 结果验证函数 */
 function validateUser(user: IUser): IUser {
-    console.log(user);
+    //console.log(user);
 
     const requiredFields: (keyof IUser)[] = ['CUUID', 'username', 'keyOf2FA'];
     for (const field of requiredFields) {
