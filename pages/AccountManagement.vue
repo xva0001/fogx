@@ -788,10 +788,36 @@ const deleteAccount = async () => {
   console.log('Deleting account');
   // This should call an API to delete account
   try {
-    await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
-    alert('Your account has been deleted. You will be logged out...');
-    // Redirect to login page
-    // window.location.href = '/login';
+    const jwt = sessionStorage.getItem('jwt');
+    const paseto = sessionStorage.getItem('paseto');
+
+    let servPubKey = await $fetch("/api/ECDHpubkey")
+    //gen key
+    let pair = genKeyCurve25519()
+    //calculate shared key
+    let shared = calSharedKey(servPubKey.pubkey, pair.getPrivate("hex"))
+
+    //        console.log(shared);
+
+    let packet = {
+      jwt :jwt,
+      paseto : paseto
+    }
+
+    let encrypt: any = await RequestEncryption.encryptMessage(JSON.stringify(packet), shared)
+    encrypt["pubkey"] = pair.getPublic("hex")
+
+    const response :any = await $fetch("/api/user/UserDeleteAccount",{
+      method:"POST",
+      body: JSON.stringify(encrypt)
+    })
+
+    if (response.success) {
+      sessionStorage.clear()
+      navigateTo({path:"/",replace:true})
+    }else{
+      throw new Error("Delete fail, bankend error")
+    }
   } catch (error) {
     console.error('Failed to delete account:', error);
     alert('Failed to delete account, please confirm your password and try again');
