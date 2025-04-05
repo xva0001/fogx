@@ -31,7 +31,7 @@ export async function getCorrectUser(
     const keyShares: string[] = [];
     const allKeys = Object.keys(validUsersWithIndex[0].user) as (keyof IUser)[];
     console.log(allKeys);
-    
+
 
     // 在字段循环外单独处理密钥分片
     validUsersWithIndex.forEach(({ user, originalIndex }) => {
@@ -59,19 +59,42 @@ export async function getCorrectUser(
         // }
         if (excludeKeys.has(key)) continue;
         console.log(key);
-        
 
+
+        // 判斷該欄位是否為 Date
+        const isDateField = validUsersWithIndex.some(({ user }) => user[key] instanceof Date);
         const candidates: string[] = [];
+        const dateMap = new Map<string, Date>(); // 保留精確原始值對應
 
-        // 收集非问题用户的字段值
         for (const { user, originalIndex } of validUsersWithIndex) {
             if (!problemIndices.includes(originalIndex)) {
                 const value = user[key];
                 if (value !== undefined && value !== null) {
-                    candidates.push(String(value));
+                    if (isDateField && value instanceof Date) {
+                        // 統一使用較低精度統計（這裡以「到秒」為例）
+                        //console.log(value.toISOString());
+                        
+                        const dateKey = value.toISOString()
+                        candidates.push(dateKey);
+                        // 保留最早遇到的原始 Date 物件（完整精度）
+                        if (!dateMap.has(dateKey)) {
+                            dateMap.set(dateKey, value);
+                        }
+                    } else {
+                        candidates.push(String(value));
+                    }
                 }
             }
         }
+        // 收集非问题用户的字段值
+        // for (const { user, originalIndex } of validUsersWithIndex) {
+        //     if (!problemIndices.includes(originalIndex)) {
+        //         const value = user[key];
+        //         if (value !== undefined && value !== null) {
+        //             candidates.push(String(value));
+        //         }
+        //     }
+        // }
 
         if (candidates.length === 0) {
             throw new Error(`No valid values for field ${String(key)}`);
@@ -94,12 +117,21 @@ export async function getCorrectUser(
         }
 
         // 类型安全转换
-        const sample = validUsersWithIndex[0].user[key];
-        try {
-            result[key] = convertType(mostCommonValue, sample);
-        } catch (error: any) {
-            throw new Error(`Field ${String(key)} conversion failed: ${error.message}`);
+        if (isDateField) {
+            const originalDate = dateMap.get(mostCommonValue);
+            if (!originalDate) {
+                throw new Error(`Cannot find original date object for field ${String(key)}`);
+            }
+            (result as any)[key] = originalDate;
+        } else {
+            const sample = validUsersWithIndex[0].user[key];
+            try {
+                result[key] = convertType(mostCommonValue, sample);
+            } catch (error: any) {
+                throw new Error(`Field ${String(key)} conversion failed: ${error.message}`);
+            }
         }
+        
     }
 
     // 使用互斥锁进行密钥恢复
@@ -162,7 +194,7 @@ function isValidKey(key: string): boolean {
 /** 结果验证函数 */
 function validateUser(user: IUser): IUser {
     console.log(user);
-    
+
     const requiredFields: (keyof IUser)[] = ['CUUID', 'username', 'keyOf2FA'];
     for (const field of requiredFields) {
         if (!user[field]) {

@@ -442,6 +442,9 @@ import {
 import type { MenuItem } from '~/composables/IMenu';
 import { calSharedKey, genKeyCurve25519 } from '~/shared/useKeyFn';
 import RequestEncryption from '~/shared/Request/requestEncrytion';
+import Identicon from "identicon.js"
+import { sha3_256 } from 'js-sha3';
+
 
 const DarkMode = useThemeStore();
 const isDark = ref(DarkMode.isDark);
@@ -653,17 +656,17 @@ const saveProfile = async () => {
     };
 
     // Only include username if changed and not empty
-    if (user.value.username && user.value.username.trim() !== '') {
+    if (user.value.username && user.value.username.trim() !== '' && user.value.username != orgUser.username ) {
       packet.username = user.value.username;
     }
 
     // Only include email if changed and valid
-    if (user.value.email && user.value.email.trim() !== '') {
+    if (user.value.email && user.value.email.trim() !== '' && user.value.email != orgUser.email ) {
       packet.email = user.value.email;
     }
 
     // Handle avatar image if changed
-    if (user.value.icon && user.value.icon.startsWith('data:image')) {
+    if (user.value.icon && user.value.icon.startsWith('data:image') && user.value.icon != orgUser.icon ) {
       // Convert to base64 without data URL prefix if needed
       const base64Data = user.value.icon.split(',')[1] || user.value.icon;
       packet.icon = base64Data;
@@ -676,6 +679,8 @@ const saveProfile = async () => {
       method: 'POST',
       body: JSON.stringify(encrypt)
     });
+    console.log(response);
+    
 
     if (response.success) {
       alert('個人資料更新成功！');
@@ -844,6 +849,12 @@ const fetchUserData = async () => {
     if (response.success && response.user) {
       //console.log(response);
       console.log(response);
+      if (response.user.icon == null ) {
+        //response.user.username
+        response.user.icon = new Identicon(sha3_256(response.user.username),100).toString()
+        //data:image/png;base64,
+        response.user.icon = "data:image/png;base64,"+response.user.icon 
+      }
         Object.assign(user.value, response.user);
         Object.assign(orgUser, response.user);
 

@@ -103,7 +103,7 @@ export default defineEventHandler(async (event) => {
         user: {
           username: user.username,
           email: user.Email,
-          icon: user.icon || user.username.charAt(0).toUpperCase(),
+          icon: user.icon  || null ,
           twoFactorEnabled: true, // 由於系統要求2FA，這裡默認為true
           createdDate: user.createdDate,
           lastestLoginDate: user.lastestLoginDate,

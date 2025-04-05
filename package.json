@@ -34,6 +34,7 @@
     "elliptic": "^6.6.1",
     "esbuild": "^0.25.0",
     "hi-base32": "^0.5.1",
+    "identicon.js": "^2.3.3",
     "jose": "^6.0.8",
     "js-sha3": "^0.9.3",
     "koa": "^2.15.4",
@@ -52,6 +53,7 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@types/identicon.js": "^2.3.5",
     "@types/vue-cropperjs": "^4.1.6",
     "daisyui": "^4.12.22"
   }
