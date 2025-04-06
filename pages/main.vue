@@ -58,10 +58,11 @@
 
             <div class="divider divider-horizontal"></div>
             <!-- User Actions -->
-            <div class="flex items-center space-x-3">
-              <span class="text-sm">{{ currentUser.username }}</span>
-              <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-                <span class="text-white font-bold">{{ currentUser.icon }}</span>
+            <div class="flex items-center space-x-3" @click.prevent="goAccoutManagement">
+              <span class="text-sm">{{ user.username }}</span>
+              <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center  overflow-hidden">
+                <!-- <span class="text-white font-bold">{{ user.icon }}</span> -->
+                <img :src="user.icon" alt="" class="w-full h-full object-cover">
               </div>
             </div>
           </div>
@@ -107,8 +108,8 @@
           <!-- Create Post Section -->
           <div class="rounded-xl shadow-sm p-6" :class="isDark ? 'bg-dark-800' : 'bg-white'"> <!-- 增加 padding -->
             <div class="flex items-center space-x-4">
-              <div class="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center">
-                <span class="text-xl text-white font-bold">{{ currentUser.icon }}</span>
+              <div class="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center  overflow-hidden">
+                <img :src="user.icon" alt="" class="w-full h-full object-cover">
               </div>
               <input v-model="newPostContent"
                 class="flex-1 px-4 py-2 rounded-full border focus:outline-none focus:border-blue-500"
@@ -293,6 +294,8 @@ import { calSharedKey, genKeyCurve25519 } from '~/shared/useKeyFn';
 import type { EncryptedRes } from '~/shared/Request/IEncryptRes';
 import type { EncryptReq } from '~/shared/Request/IEncryptReq';
 import type { FetchOptions} from 'ofetch';
+import Identicon from 'identicon.js';
+import { sha3_256 } from 'js-sha3';
 
 const DarkMode = useThemeStore();
 const isDark = ref(DarkMode.isDark);
@@ -353,15 +356,27 @@ const bottomItems = computed<MenuItem[]>(() => [
   }
 ])
 
+// User data
+const user = ref({
+  icon: '',
+  username: '',
+  email: '',
+  twoFactorEnabled: true
+});
+
+
 const handleNavigate = (item: MenuItem) => {
   if (item.key === 'logout') {
     // Handle logout
-    console.log('Logout clicked')
-    return
+    logout()
   }
   currentRoute.value = item.key
   // Handle navigation
   console.log('Navigate to:', item.route)
+}
+
+const goAccoutManagement = ()=>{
+  navigateTo({path:"/AccountManagement"})
 }
 
 // 主題切換函數
@@ -372,6 +387,72 @@ const toggleTheme = () => {
     localStorage.setItem('theme', isDark.value ? 'dark' : 'light')
   }
 }
+// Fetch user data
+const fetchUserData = async () => {
+  try {
+    const jwt = sessionStorage.getItem('jwt');
+    const paseto = sessionStorage.getItem('paseto');
+
+    if (!jwt || !paseto) {
+      console.error('Authentication tokens not found');
+      navigateTo('/login');
+      return;
+    }
+    let packet = {
+      jwt: jwt,
+      paseto: paseto
+    }
+    let servPubKey = await $fetch("/api/ECDHpubkey")
+    //gen key
+    let pair = genKeyCurve25519()
+    //calculate shared key
+    let shared = calSharedKey(servPubKey.pubkey, pair.getPrivate("hex"))
+
+    //        console.log(shared);
+
+    let encrypt: any = await RequestEncryption.encryptMessage(JSON.stringify(packet), shared)
+
+    encrypt["pubkey"] = pair.getPublic("hex")
+
+    //console.log(encrypt);
+
+
+    let response: any = await $fetch('/api/user/profileget', {
+      method: "POST",
+      body: JSON.stringify(encrypt)
+    }).then((res: any) => RequestEncryption.decryptMessage(res.encryptedMessage, shared, res.iv));
+    // console.log(response);
+    // console.log(typeof response);
+    response = JSON.parse(response)
+    //response = 
+    if (response.success && response.user) {
+      //console.log(response);
+      console.log(response);
+      if (response.user.icon == null) {
+        //response.user.username
+        response.user.icon = new Identicon(sha3_256(response.user.username), 100).toString()
+        //data:image/png;base64,
+
+      }
+      response.user.icon = "data:image/png;base64," + response.user.icon
+      //Object.assign(user.value, response.user);
+      Object.assign(user.value, response.user);
+
+
+      // Also fetch other data, such as recent login sessions
+    } else {
+      console.error('Failed to fetch user data');
+    }
+  } catch (error: any) {
+    console.error('Error fetching user data:', error);
+    // If it's authentication issue, redirect to login page
+    if (error.statusCode === 401) {
+      navigateTo('/login');
+    }
+  }
+};
+
+
 
 onMounted(() => {
   // 1. 初始化主題
@@ -380,6 +461,7 @@ onMounted(() => {
     isDark.value = savedTheme === 'dark';
     document.documentElement.dataset.theme = savedTheme;
   }
+  fetchUserData()
 
   // 2. 首次加載貼文
   fetchPosts(1);
@@ -563,7 +645,7 @@ const toggleLike = async (post: UserPost) => {
 // Toggle comments visibility
 const toggleComments = (post: UserPost) => { post.showComments = !post.showComments; };
 const getAuthHeaders = (): Record<string, string> =>{
-  const token = sessionStorage.getItem('jwt'); // 或 paseto，取決於後端期望
+const token = sessionStorage.getItem('jwt'); // 或 paseto，取決於後端期望
   if (!token) {
     console.warn('Authentication token not found.');
     // 可以考慮導航到登入頁面
@@ -588,6 +670,7 @@ interface Comment {
 }
 
 type FetchMethod = "GET" | "HEAD" | "PATCH" | "POST" | "PUT" | "DELETE" | "CONNECT" | "OPTIONS" | "TRACE";
+
 async function fetchEncrypted<T = any>(
   url: string,
   options: RequestInit = {}, // 包含 method, headers 等
@@ -636,6 +719,7 @@ async function fetchEncrypted<T = any>(
       // 可以複製其他兼容選項
     };
 
+
     // 驗證並添加 method 屬性，確保其類型正確
     const upperCaseMethod = options.method?.toUpperCase();
     let finalMethod: FetchMethod | undefined = undefined;
@@ -644,35 +728,44 @@ async function fetchEncrypted<T = any>(
         finalMethod = upperCaseMethod as FetchMethod; // <--- 關鍵修正
     }
 
+
+
     // 構造最終傳遞給 $fetch 的選項
     const finalFetchOptions = {
         ...baseFetchOptions,
         ...(finalMethod && { method: finalMethod }) // 只有當 method 有效時才添加 method 屬性
     };
 
+
     // 5. 發送請求
     console.log('Sending fetch request with options:', finalFetchOptions);
     const response_enc = await $fetch<EncryptedRes>(url, finalFetchOptions);
     console.log('Received encrypted response:', response_enc);
+
 
     // 6. 檢查基本回應結構
     if (!response_enc || typeof response_enc.encryptedMessage !== 'string' || typeof response_enc.iv !== 'string') {
       throw new Error('Invalid encrypted response structure from server.');
     }
 
+
     // 7. 解密回應
     const decryptedJsonString = await RequestEncryption.decryptMessage(response_enc.encryptedMessage, shared, response_enc.iv);
     console.log('Decrypted JSON string:', decryptedJsonString);
 
+
+
     // 8. 解析 JSON
     const decryptedResponse = JSON.parse(decryptedJsonString);
     console.log('Parsed decrypted response:', decryptedResponse);
+
 
     // 9. 檢查業務成功標誌 (假設後端總是在解密後的數據中包含 success)
     if (decryptedResponse && decryptedResponse.success === false) {
       console.error('Server indicated failure:', decryptedResponse.message);
       throw new Error(decryptedResponse.message || 'Server returned an error.');
     }
+
 
     // 10. 返回解密後的業務數據 (可能是整個對象，或其中的 data 屬性，取決於後端)
     return decryptedResponse as T;
@@ -1040,6 +1133,7 @@ const handlePostSubmit = async (formData: FormData) => {
     isLoading.value = false;
   }
 };
+
 
 // Add share function
 const sharePost = (post: UserPost) => { shareModalPost.value = post; };

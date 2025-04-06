@@ -518,7 +518,7 @@ const user = ref({
   twoFactorEnabled: true
 });
 
-let orgUser ={
+let orgUser = {
   icon: '',
   username: '',
   email: '',
@@ -656,17 +656,17 @@ const saveProfile = async () => {
     };
 
     // Only include username if changed and not empty
-    if (user.value.username && user.value.username.trim() !== '' && user.value.username != orgUser.username ) {
+    if (user.value.username && user.value.username.trim() !== '' && user.value.username != orgUser.username) {
       packet.username = user.value.username;
     }
 
     // Only include email if changed and valid
-    if (user.value.email && user.value.email.trim() !== '' && user.value.email != orgUser.email ) {
+    if (user.value.email && user.value.email.trim() !== '' && user.value.email != orgUser.email) {
       packet.email = user.value.email;
     }
 
     // Handle avatar image if changed
-    if (user.value.icon && user.value.icon.startsWith('data:image') && user.value.icon != orgUser.icon ) {
+    if (user.value.icon && user.value.icon.startsWith('data:image') && user.value.icon != orgUser.icon) {
       // Convert to base64 without data URL prefix if needed
       const base64Data = user.value.icon.split(',')[1] || user.value.icon;
       packet.icon = base64Data;
@@ -679,8 +679,8 @@ const saveProfile = async () => {
       method: 'POST',
       body: JSON.stringify(encrypt)
     });
-    console.log(response);
-    
+    //console.log(response);
+
 
     if (response.success) {
       alert('個人資料更新成功！');
@@ -800,22 +800,22 @@ const deleteAccount = async () => {
     //        console.log(shared);
 
     let packet = {
-      jwt :jwt,
-      paseto : paseto
+      jwt: jwt,
+      paseto: paseto
     }
 
     let encrypt: any = await RequestEncryption.encryptMessage(JSON.stringify(packet), shared)
     encrypt["pubkey"] = pair.getPublic("hex")
 
-    const response :any = await $fetch("/api/user/UserDeleteAccount",{
-      method:"POST",
+    const response: any = await $fetch("/api/user/UserDeleteAccount", {
+      method: "POST",
       body: JSON.stringify(encrypt)
     })
 
     if (response.success) {
       sessionStorage.clear()
-      navigateTo({path:"/",replace:true})
-    }else{
+      navigateTo({ path: "/", replace: true })
+    } else {
       throw new Error("Delete fail, bankend error")
     }
   } catch (error) {
@@ -831,7 +831,7 @@ const logout = () => {
   sessionStorage.removeItem('jwt');
   sessionStorage.removeItem('paseto');
   // Redirect to login page
-  navigateTo('/login');
+  navigateTo({path:'/login',replace:true});
 };
 
 // Fetch user data
@@ -861,29 +861,29 @@ const fetchUserData = async () => {
 
     encrypt["pubkey"] = pair.getPublic("hex")
 
-    console.log(encrypt);
+    //console.log(encrypt);
 
 
     let response: any = await $fetch('/api/user/profileget', {
       method: "POST",
       body: JSON.stringify(encrypt)
     }).then((res: any) => RequestEncryption.decryptMessage(res.encryptedMessage, shared, res.iv));
-    console.log(response);
-    console.log(typeof response);
+    // console.log(response);
+    // console.log(typeof response);
     response = JSON.parse(response)
     //response = 
     if (response.success && response.user) {
       //console.log(response);
       console.log(response);
-      if (response.user.icon == null ) {
+      if (response.user.icon == null) {
         //response.user.username
-        response.user.icon = new Identicon(sha3_256(response.user.username),100).toString()
+        response.user.icon = new Identicon(sha3_256(response.user.username), 100).toString()
         //data:image/png;base64,
-        
+
       }
-      response.user.icon = "data:image/png;base64,"+response.user.icon 
-        Object.assign(user.value, response.user);
-        Object.assign(orgUser, response.user);
+      response.user.icon = "data:image/png;base64," + response.user.icon
+      Object.assign(user.value, response.user);
+      Object.assign(orgUser, response.user);
 
 
       // Also fetch other data, such as recent login sessions
