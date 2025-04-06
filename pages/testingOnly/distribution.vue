@@ -84,6 +84,7 @@
   
   <script setup lang="ts">
   import { ref } from 'vue';
+  import { Buffer } from "buffer";
   import { secrets as secretsInstance } from 'easy-shamir-secret-sharing';
   
   const message = ref('');
