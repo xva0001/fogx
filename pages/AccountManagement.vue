@@ -160,33 +160,37 @@
                 </div>
               </div>
 
+              <h3 class="text-md font-medium mb-3" :class="isDark ? 'text-gray-300' : 'text-gray-700'">Reset 2FA Key</h3>
               <!-- Two-factor authentication section -->
               <div class="pt-4 border-t" :class="isDark ? 'border-gray-700' : 'border-gray-200'">
                 <div class="flex items-center justify-between">
                   <div>
                     <h3 class="text-md font-medium" :class="isDark ? 'text-gray-300' : 'text-gray-700'">Two-Factor
                       Authentication</h3>
-                    <p class="text-sm mt-1" :class="isDark ? 'text-gray-400' : 'text-gray-500'">
+                    <p class="text-sm mt-1 whitespace-nowrap" :class="isDark ? 'text-gray-400' : 'text-gray-500'">
                       Add an extra layer of security with app or SMS verification
                     </p>
                   </div>
-                  <div class="flex items-center">
-                    <span class="text-sm mr-2" :class="isDark ? 'text-gray-400' : 'text-gray-500'">
+                  <div class="flex items-center space-x-4">
+                    <span class="text-sm" :class="isDark ? 'text-gray-400' : 'text-gray-500'">
                       {{ user.twoFactorEnabled ? 'Enabled' : 'Disabled' }}
                     </span>
-                    <button class="relative inline-flex items-center h-6 rounded-full w-11"
-                      :class="user.twoFactorEnabled ? 'bg-blue-500' : 'bg-gray-400'" @click="toggleTwoFactor">
+                    <button class="relative inline-flex items-center h-6 rounded-full w-11" :class="user.twoFactorEnabled ? 'bg-blue-500' : 'bg-gray-400'" @click="toggleTwoFactor">
                       <span class="absolute h-4 w-4 rounded-full bg-white transition transform"
                         :class="user.twoFactorEnabled ? 'translate-x-6' : 'translate-x-1'"></span>
                     </button>
                   </div>
                 </div>
+                <div class="flex justify-end mt-4">
+                  <button @click="startReset2FA"
+                          class="px-4 py-2 text-sm border border-orange-500 text-orange-500 rounded-md hover:bg-orange-50 dark:hover:bg-orange-900/30 focus:outline-none whitespace-nowrap">
+                    Reset 2FA Key
+                  </button>
+                </div>
               </div>
 
               <!-- Login activity section -->
               <div class="pt-4 border-t" :class="isDark ? 'border-gray-700' : 'border-gray-200'">
-                <h3 class="text-md font-medium mb-3" :class="isDark ? 'text-gray-300' : 'text-gray-700'">Reset 2FA Key
-                </h3>
                 <div class="space-y-3">
                   <!-- <div v-for="(session, index) in recentSessions" :key="index"
                        class="flex items-center justify-between p-3 rounded-md"
@@ -386,6 +390,61 @@
       </div>
     </div>
 
+
+
+    <!-- 2FA 重置模態框 -->
+    <div v-if="showReset2FAModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white dark:bg-dark-800 rounded-lg p-6 max-w-md w-full">
+        <h3 class="text-lg font-bold mb-4">Reset Two-Factor Authentication</h3>
+
+        <!-- 步驟一：輸入密碼確認 -->
+        <div v-if="reset2FAStep === 1" class="space-y-4">
+          <p>Please enter your current password to continue.</p>
+          <div>
+            <label class="block text-sm font-medium mb-1">Current Password</label>
+            <input v-model="reset2FAPassword" type="password"
+                   class="w-full px-4 py-2 rounded-md border focus:outline-none focus:border-blue-500"
+                   :class="isDark ? 'bg-dark-700 border-gray-700 text-gray-300' : 'bg-white border-gray-300'" />
+          </div>
+           <p v-if="reset2FAError" class="text-red-500 text-sm">{{ reset2FAError }}</p>
+          <div class="flex justify-end space-x-2">
+            <button @click="cancelReset2FA" class="px-4 py-2 border rounded-md">Cancel</button>
+            <button @click="verifyPasswordFor2FAReset" class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600" :disabled="!reset2FAPassword">Verify</button>
+          </div>
+        </div>
+
+        <!-- 步驟二：顯示新 QR Code 和密鑰，輸入驗證碼 -->
+        <div v-if="reset2FAStep === 2" class="space-y-4">
+          <p>Scan the QR code with your authenticator app or enter the key manually.</p>
+          <div class="flex flex-col items-center">
+            <img :src="new2FAImgData" alt="New QR Code" class="block mb-4 w-48 h-48 mx-auto" />
+            <p class="text-sm mb-2">Manual Key: <strong class="text-xs break-all">{{ new2FAKey }}</strong></p>
+            <!-- 顯示新的備用碼 -->
+            <div v-if="newBackupCodes.length > 0" class="mt-2 w-full text-center">
+              <h4 class="text-sm font-semibold mb-1">New Backup Codes (Save these!)</h4>
+              <div class="grid grid-cols-2 gap-1 text-xs bg-gray-100 dark:bg-dark-700 p-2 rounded">
+                <span v-for="code in newBackupCodes" :key="code">{{ code }}</span>
+              </div>
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">Enter 6-digit code from app</label>
+            <input v-model="new2FACode" type="text" placeholder="••••••"
+                   class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                   :class="isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'"
+                   required maxlength="6" pattern="[0-9]{6}">
+          </div>
+           <p v-if="reset2FAError" class="text-red-500 text-sm">{{ reset2FAError }}</p>
+          <div class="flex justify-end space-x-2">
+            <button @click="cancelReset2FA" class="px-4 py-2 border rounded-md">Cancel</button>
+            <button @click="verifyAndSaveNew2FA" class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600" :disabled="!new2FACode || new2FACode.length !== 6">Verify & Save</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+
     <!-- Delete account confirmation modal -->
     <div v-if="confirmAccountDeletion"
       class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -443,8 +502,14 @@ import type { MenuItem } from '~/composables/IMenu';
 import { calSharedKey, genKeyCurve25519 } from '~/shared/useKeyFn';
 import RequestEncryption from '~/shared/Request/requestEncrytion';
 import Identicon from "identicon.js"
-import { sha3_256 } from 'js-sha3';
+import { sha3_256, sha3_384 } from 'js-sha3';
 
+import { twoFAQRGenerator } from '~/composables/2faQRimg'; // <--- 導入 QR 生成器
+import { SecFATool } from '~/shared/2FATool'; // <--- 導入 2FA 工具
+import type { EncryptedRes } from '~/shared/Request/IEncryptRes'; // <--- 導入類型
+import type { EncryptReq } from '~/shared/Request/IEncryptReq'; // <--- 導入類型
+
+type FetchMethod = "GET" | "HEAD" | "PATCH" | "POST" | "PUT" | "DELETE" | "CONNECT" | "OPTIONS" | "TRACE";
 
 const DarkMode = useThemeStore();
 const isDark = ref(DarkMode.isDark);
@@ -591,6 +656,22 @@ const notificationSettings = ref({
   messages: true,
   followers: true
 });
+
+
+
+// --- 2FA 重置相關狀態 ---
+const showReset2FAModal = ref(false);
+const reset2FAStep = ref(1); // 1: 輸入密碼, 2: 顯示新碼並驗證
+const reset2FAPassword = ref('');
+const new2FAKey = ref('');
+const new2FAImgData = ref('');
+const newBackupCodes = ref<string[]>([]); // 如果後端返回新的備用碼
+const new2FACode = ref(''); // 用戶輸入的新驗證碼
+const reset2FAError = ref<string | null>(null); // 用於顯示錯誤訊息
+
+const $TOTPvalidator = SecFATool(); // 獲取 2FA 工具實例
+
+
 
 // Recent login sessions
 const recentSessions = ref<any[]>([]);
@@ -899,6 +980,269 @@ const fetchUserData = async () => {
   }
 };
 
+// --- 新增：2FA 重置相關方法 ---
+const startReset2FA = () => {
+  reset2FAStep.value = 1;
+  reset2FAPassword.value = '';
+  new2FAKey.value = '';
+  new2FAImgData.value = '';
+  newBackupCodes.value = [];
+  new2FACode.value = '';
+  reset2FAError.value = null;
+  showReset2FAModal.value = true;
+};
+
+const cancelReset2FA = () => {
+  showReset2FAModal.value = false;
+};
+
+const getAuthHeaders = (): Record<string, string> => {
+  const token = sessionStorage.getItem('jwt');
+  if (!token) {
+    console.warn('Authentication token not found.');
+    return {};
+  }
+  return { 'Authorization': `Bearer ${token}` };
+};
+
+async function fetchEncrypted<T = any>(
+  url: string,
+  options: RequestInit = {}, // 外部傳入保持 RequestInit
+  payload?: any
+): Promise<T> {
+  console.log(`fetchEncrypted: ${options.method || 'GET'} ${url}`);
+  let shared: string | undefined;
+
+  try {
+    // 1. 獲取伺服器公鑰
+    const servPubKeyData = await $fetch<{ pubkey: string }>("/api/ECDHpubkey");
+    if (!servPubKeyData || !servPubKeyData.pubkey) throw new Error("Failed to get server public key.");
+
+    // 2. 生成客戶端密鑰對
+    const pair = genKeyCurve25519();
+    const clientPubKey = pair.getPublic("hex");
+    shared = calSharedKey(servPubKeyData.pubkey, pair.getPrivate("hex"));
+
+    // 3. 準備請求體
+    let requestBodyForFetch: string | undefined;
+    if (payload && (options.method === 'POST' || options.method === 'PUT' || options.method === 'DELETE')) {
+      console.log('Encrypting payload:', payload);
+      const encryptedCoreData = await RequestEncryption.encryptMessage(JSON.stringify(payload), shared);
+      const encryptedBodyObject: EncryptReq = {
+        iv: encryptedCoreData.iv,
+        encryptedMessage: encryptedCoreData.encryptedMessage,
+        pubkey: clientPubKey
+      };
+      requestBodyForFetch = JSON.stringify(encryptedBodyObject);
+      console.log('Encrypted request body:', requestBodyForFetch);
+    }
+
+    // 4. 準備 $fetch 選項
+    const baseFetchOptions = {
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders(), ...(options.headers || {}) },
+      body: requestBodyForFetch,
+    };
+    const upperCaseMethod = options.method?.toUpperCase();
+    let finalMethod: FetchMethod | undefined = undefined;
+    if (upperCaseMethod && ["GET", "HEAD", "PATCH", "POST", "PUT", "DELETE", "CONNECT", "OPTIONS", "TRACE"].includes(upperCaseMethod)) {
+        finalMethod = upperCaseMethod as FetchMethod;
+    }
+    const finalFetchOptions = { ...baseFetchOptions, ...(finalMethod && { method: finalMethod }) };
+
+    // 5. 發送請求
+    console.log('Sending fetch request with options:', finalFetchOptions);
+    const response_enc = await $fetch<EncryptedRes>(url, finalFetchOptions);
+    console.log('Received encrypted response:', response_enc);
+
+    // 6. 檢查基本回應結構
+    if (!response_enc || typeof response_enc.encryptedMessage !== 'string' || typeof response_enc.iv !== 'string') {
+      throw new Error('Invalid encrypted response structure from server.');
+    }
+
+    // 7. 解密回應
+    const decryptedJsonString = await RequestEncryption.decryptMessage(response_enc.encryptedMessage, shared, response_enc.iv);
+    console.log('Decrypted JSON string:', decryptedJsonString);
+
+    // 8. 解析 JSON
+    const decryptedResponse = JSON.parse(decryptedJsonString);
+    console.log('Parsed decrypted response:', decryptedResponse);
+
+    // 9. 檢查業務成功標誌
+    if (decryptedResponse && decryptedResponse.success === false) {
+      console.error('Server indicated failure:', decryptedResponse.message);
+      throw new Error(decryptedResponse.message || 'Server returned an error.');
+    }
+
+    // 10. 返回解密後的業務數據
+    return decryptedResponse as T;
+
+  } catch (error: any) {
+    console.error(`Encrypted fetch to ${url} failed:`, error);
+    const message = error.data?.message || error.message || 'An error occurred during the encrypted request.';
+    if (error.message?.includes('decrypt')) console.error("Decryption likely failed.");
+    throw new Error(message);
+  }
+}
+
+
+// 步驟一：驗證密碼 (調用假設的 API)
+const verifyPasswordFor2FAReset = async () => {
+  if (!reset2FAPassword.value) return;
+  reset2FAError.value = null;
+  let shared: string | undefined; // 需要在 try 外部定義以便 catch 中可能使用 (雖然此處 catch 不直接用)
+
+  try {
+    console.log("Verifying password for 2FA reset...");
+    const jwt = sessionStorage.getItem('jwt');
+    const paseto = sessionStorage.getItem('paseto');
+    const CUUID = sessionStorage.getItem('CUUID');
+    if (!jwt || !paseto || !CUUID) throw new Error("Missing auth tokens or CUUID.");
+
+    // 1. 獲取伺服器公鑰
+    const servPubKeyData = await $fetch<{ pubkey: string }>("/api/ECDHpubkey");
+    if (!servPubKeyData || !servPubKeyData.pubkey) throw new Error("Failed to get server public key.");
+
+    // 2. 生成客戶端密鑰對並計算共享密鑰
+    const pair = genKeyCurve25519();
+    shared = calSharedKey(servPubKeyData.pubkey, pair.getPrivate("hex"));
+
+    // 3. 準備要加密的 payload
+    const payload = {
+      jwt, paseto, CUUID,
+      current_password_sha3_256: sha3_256(reset2FAPassword.value),
+      current_password_sha3_384: sha3_384(reset2FAPassword.value)
+    };
+
+    // 4. 加密 payload
+    const encryptedCoreData = await RequestEncryption.encryptMessage(JSON.stringify(payload), shared);
+
+    // 5. 構建包含公鑰的請求體
+    const requestBody: EncryptReq = { // 使用 EncryptReq 類型
+      iv: encryptedCoreData.iv,
+      encryptedMessage: encryptedCoreData.encryptedMessage,
+      pubkey: pair.getPublic("hex")
+    };
+
+    // 6. 發送請求
+    // **調用假設的 API 端點**
+    const response_enc = await $fetch<EncryptedRes>( // 期望返回加密的回應
+      '/api/user/verifyPasswordAndGenerateKey', // <--- 替換!
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }, // 添加 Auth Header
+        body: JSON.stringify(requestBody) // 發送包含 iv, encryptedMessage, pubkey 的 JSON 字串
+      }
+    );
+
+    // 7. 檢查和解密回應
+    if (!response_enc || !response_enc.encryptedMessage || !response_enc.iv) {
+        throw new Error("Invalid response from server.");
+    }
+    const decryptedJsonString = await RequestEncryption.decryptMessage(response_enc.encryptedMessage, shared, response_enc.iv);
+    const response = JSON.parse(decryptedJsonString); // 解析解密後的 JSON
+
+    // 8. 處理業務邏輯
+    if (response && response.success && response.newKey) {
+      console.log("Password verified, received new 2FA key.");
+      new2FAKey.value = response.newKey;
+      newBackupCodes.value = response.newBackupCodes || [];
+      try {
+        new2FAImgData.value = await twoFAQRGenerator.genQR("Your App Name", user.value.email || user.value.username || "user", new2FAKey.value);
+      } catch (qrError) { console.error("QR gen error:", qrError); reset2FAError.value = "QR gen failed."; }
+      reset2FAStep.value = 2;
+    } else {
+      console.error("Password verification failed or missing new key.");
+      reset2FAError.value = response?.message || "Incorrect password or server error.";
+    }
+  } catch (error: any) {
+    console.error("Error verifying password for 2FA reset:", error);
+    // 嘗試從 H3Error 中獲取更詳細的訊息
+    const message = error.data?.message || error.message || "An error occurred during password verification.";
+    reset2FAError.value = message;
+  } finally {
+    reset2FAPassword.value = ''; // 清除密碼輸入
+  }
+};
+
+// 步驟二：驗證新驗證碼並保存 (手動加密/解密風格)
+const verifyAndSaveNew2FA = async () => {
+  if (!new2FACode.value || new2FACode.value.length !== 6) {
+      reset2FAError.value = "Please enter a valid 6-digit code.";
+      return;
+  }
+  reset2FAError.value = null;
+  let shared: string | undefined;
+
+  try {
+    console.log("Verifying new 2FA code and saving...");
+    const jwt = sessionStorage.getItem('jwt');
+    const paseto = sessionStorage.getItem('paseto');
+    const CUUID = sessionStorage.getItem('CUUID');
+    if (!jwt || !paseto || !CUUID) throw new Error("Missing auth tokens or CUUID.");
+
+    // 1. 獲取伺服器公鑰
+    const servPubKeyData = await $fetch<{ pubkey: string }>("/api/ECDHpubkey");
+    if (!servPubKeyData || !servPubKeyData.pubkey) throw new Error("Failed to get server public key.");
+
+    // 2. 生成客戶端密鑰對並計算共享密鑰
+    const pair = genKeyCurve25519();
+    shared = calSharedKey(servPubKeyData.pubkey, pair.getPrivate("hex"));
+
+    // 3. 準備要加密的 payload
+    const payload = {
+      jwt, paseto, CUUID,
+      newKey: new2FAKey.value,
+      newBackupCodes: newBackupCodes.value,
+      code: new2FACode.value
+    };
+
+    // 4. 加密 payload
+    const encryptedCoreData = await RequestEncryption.encryptMessage(JSON.stringify(payload), shared);
+
+    // 5. 構建包含公鑰的請求體
+    const requestBody: EncryptReq = {
+      iv: encryptedCoreData.iv,
+      encryptedMessage: encryptedCoreData.encryptedMessage,
+      pubkey: pair.getPublic("hex")
+    };
+
+    // 6. 發送請求
+    // **調用假設的 API 端點**
+    const response_enc = await $fetch<EncryptedRes>(
+      '/api/user/confirmNew2FA', // <--- 替換!
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify(requestBody)
+      }
+    );
+
+    // 7. 檢查和解密回應
+    if (!response_enc || !response_enc.encryptedMessage || !response_enc.iv) {
+        throw new Error("Invalid response from server.");
+    }
+    const decryptedJsonString = await RequestEncryption.decryptMessage(response_enc.encryptedMessage, shared, response_enc.iv);
+    const response = JSON.parse(decryptedJsonString);
+
+    // 8. 處理業務邏輯
+    if (response && response.success) {
+      console.log("New 2FA key verified and saved successfully.");
+      alert("Two-Factor Authentication has been successfully reset!");
+      user.value.twoFactorEnabled = true;
+      showReset2FAModal.value = false;
+    } else {
+      console.error("Verification of new 2FA code failed.");
+      reset2FAError.value = response?.message || "Invalid code or server error during save.";
+    }
+  } catch (error: any) {
+    console.error("Error verifying and saving new 2FA:", error);
+    const message = error.data?.message || error.message || "An error occurred while saving the new 2FA setup.";
+    reset2FAError.value = message;
+  } finally {
+      new2FACode.value = ''; // 清除驗證碼輸入
+  }
+};
+
 onMounted(() => {
   // Initialize theme
   if (import.meta.client) {
@@ -910,4 +1254,5 @@ onMounted(() => {
   // Fetch user data from backend
   fetchUserData();
 });
+
 </script>
