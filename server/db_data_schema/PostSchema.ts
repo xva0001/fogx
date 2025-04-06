@@ -19,7 +19,7 @@ export interface IPost {
   createdDate: Date;
   //for aes
   isPublic:boolean
-  iv?:string
+  iv:string
   title: string;
   content: string;
   Image: string[];
