@@ -17,6 +17,9 @@ export interface IPost {
   UUID: string;
   UserUUID: string;
   createdDate: Date;
+  //for aes
+  isPublic:boolean
+  iv?:string
   title: string;
   content: string;
   Image: string[];
@@ -30,6 +33,9 @@ const PostSchema = new Schema<IPost>({
   UUID: { type: String, required: true, unique: true },
   UserUUID: { type: String, required: true },
   createdDate: { type: Date, required:true, immutable: true },
+  //for aes
+  isPublic:{type: Boolean,required:true  },
+  iv:{type:String,required:true,default:""},
   title: { type: String, required: true, trim: true, maxlength: 255 },
   content: { type: String, required: true, maxlength: 5000 },
   Image: {
