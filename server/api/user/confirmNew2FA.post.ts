@@ -15,6 +15,7 @@ import { secrets } from "easy-shamir-secret-sharing"; // 如果 updateUser 內�
 import { updateUser } from "~/server/dbOperation/updateUser"; // 確保路徑正確
 import { getCorrectUser } from "~/server/DataFixer/UserInformationFixer"; // 確保路徑正確
 import { Mutex } from "async-mutex";
+import { GetSharedKeyHandler, IncomingReqEncryptionHandler } from "~/server/eventHandle/EncrytionHandler/IncomingEncryptionHandler";
 
 // 1. 定義解密後請求體的 Zod Schema
 const ConfirmNew2FASchema = z.object({
@@ -28,37 +29,39 @@ const ConfirmNew2FASchema = z.object({
 type TConfirmNew2FARequest = z.infer<typeof ConfirmNew2FASchema>;
 
 export default defineEventHandler(async (event: H3Event): Promise<EncryptedRes | ReturnType<typeof createError>> => {
-  const body = await readBody(event);
-  const req = EncryptReqShema.safeParse(body);
   const dbConnector: MongoDBConnector = new MongoDBConnector();
   const twoFATool: IFactorCheckTool = SecFATool();
 
-  if (!req.success) {
-    console.error("Invalid request body structure:", req.error);
-    return createError({ statusCode: 400, statusMessage: "Bad Request", message: "Invalid request structure." });
-  }
 
+  const body = await readBody(event);
   let shared: string | undefined;
   let decryptedData: TConfirmNew2FARequest | undefined;
 
   try {
-    // 2. 解密和驗證請求
-    shared = calSharedKey(req.data.pubkey, process.env.ECC_PRIVATE_KEY!);
-    if (!shared) throw new Error("Failed to calculate shared key.");
-
-    const decrypt = await RequestEncryption.decryptMessage(req.data.encryptedMessage, shared, req.data.iv);
-    const parsedDecrypt = ConfirmNew2FASchema.safeParse(JSON.parse(decrypt));
-    if (!parsedDecrypt.success) {
-      console.error("Invalid decrypted data structure:", parsedDecrypt.error);
-      throw new Error("Invalid decrypted data format.");
+    
+    //   // 2. 解密和驗證請求
+    try {
+      //const decrypt = await RequestEncryption.decryptMessage(req.data.encryptedMessage, shared, req.data.iv);
+      decryptedData = await IncomingReqEncryptionHandler(event, ConfirmNew2FASchema)
+      shared = GetSharedKeyHandler(body)
+    } catch (error) {
+      throw InvalidError()
     }
-    decryptedData = parsedDecrypt.data;
 
     // 3. 驗證 Token
-    const jwtPayload = await verifyJWT(decryptedData.jwt);
-    const pasetoPayload = await verifyToken(decryptedData.paseto);
-    if (!jwtPayload || jwtPayload.CUUID !== decryptedData.CUUID) throw new Error("Invalid or expired JWT.");
-    if (!pasetoPayload || pasetoPayload.CUUID !== decryptedData.CUUID) throw new Error("Invalid or expired Paseto token.");
+    let jwtPayload ;
+    let pasetoPayload ;
+
+    try {
+      jwtPayload = await verifyJWT(decryptedData.jwt);
+      pasetoPayload = await verifyToken(decryptedData.paseto);
+      if (!jwtPayload || jwtPayload.CUUID !== decryptedData.CUUID) throw new Error("Invalid or expired JWT.");
+      if (!pasetoPayload || pasetoPayload.CUUID !== decryptedData.CUUID) throw new Error("Invalid or expired Paseto token.");
+    } catch (error) {
+       throw createError("token invalid!")
+    }
+
+
 
     // 4. 驗證用戶輸入的 6 位數驗證碼是否與 newKey 匹配
     const currentCounter = Math.floor(Date.now() / 1000 / 30);
@@ -84,43 +87,46 @@ export default defineEventHandler(async (event: H3Event): Promise<EncryptedRes |
       const problemInt: number[] = [];
       const fetchMutex = new Mutex();
       await Promise.all(connections.map(async (conn, index) => {
+        try {
+          const userModel = conn.model<IUser>("user", userSchema);
+          const user = await userModel.findOne({ CUUID: decryptedData!.CUUID }).lean();
+          const release = await fetchMutex.acquire();
           try {
-              const userModel = conn.model<IUser>("user", userSchema);
-              const user = await userModel.findOne({ CUUID: decryptedData!.CUUID }).lean();
-              const release = await fetchMutex.acquire();
-              try {
-                  if (user) userArr.push(user as IUser);
-                  else { userArr.push(undefined); problemInt.push(index); }
-              } finally { release(); }
-          } catch (dbError) {
-              console.error(`Error fetching user data from DB ${conn.name}:`, dbError);
-              const release = await fetchMutex.acquire();
-              try { userArr.push(undefined); problemInt.push(index); }
-              finally { release(); }
+            if (user) userArr.push(user as IUser);
+            else { userArr.push(undefined); problemInt.push(index); }
+          } 
+          finally { 
+            release(); 
           }
+        } catch (dbError) {
+          console.error(`Error fetching user data from DB ${conn.name}:`, dbError);
+          const release = await fetchMutex.acquire();
+          try { userArr.push(undefined); problemInt.push(index); }
+          finally { release(); }
+        }
       }));
       const currentUserData = await getCorrectUser(userArr, problemInt);
       if (!currentUserData) throw new Error("Failed to retrieve current user data.");
 
       // 創建包含更新後 2FA 信息的新用戶對象基礎
       const updatedUserDataBase = {
-          ...currentUserData,
-          backupCode: decryptedData.newBackupCodes, // 使用新的備用碼
-          updatedDate: new Date(), // 更新時間
-          // keyOf2FA 和簽名將由 updateUser 處理
+        ...currentUserData,
+        backupCode: decryptedData.newBackupCodes, // 使用新的備用碼
+        updatedDate: new Date(), // 更新時間
+        // keyOf2FA 和簽名將由 updateUser 處理
       };
 
       // 調用 updateUser，傳遞修正後的用戶對象和原始新密鑰
       // 假設 updateUser 函數簽名是 (connector, userObject, newRawKey, optionalLastLoginDate)
       // 並且 updateUser 內部會處理分片、重新計算 objHash 和 objSign
       const updateSuccess = await updateUser(
-          dbConnector,
-          updatedUserDataBase as IUser, // 傳遞更新基礎數據後的 IUser 對象
-          decryptedData.newKey // 傳遞原始的新 2FA 密鑰 (string)
+        dbConnector,
+        updatedUserDataBase as IUser, // 傳遞更新基礎數據後的 IUser 對象
+        decryptedData.newKey // 傳遞原始的新 2FA 密鑰 (string)
       );
 
       if (!updateSuccess) {
-          throw new Error("Failed to update user 2FA details in database.");
+        throw new Error("Failed to update user 2FA details in database.");
       }
 
       responsePayload = { success: true };

@@ -13,8 +13,8 @@ import { verifyToken } from "~/server/token_validator/paseto"; // 確保路徑�
 import { SecFATool, IFactorCheckTool } from "~/shared/2FATool"; // 確保路徑正確
 // 移除 getCorrectUser 的導入
 // import { getCorrectUser } from "~/server/DataFixer/UserInformationFixer";
-import { sha3_256, sha3_384 } from "js-sha3"; // 確保導入
 import { Mutex } from "async-mutex";
+import { GetSharedKeyHandler, IncomingReqEncryptionHandler } from "~/server/eventHandle/EncrytionHandler/IncomingEncryptionHandler";
 
 // 1. 定義解密後請求體的 Zod Schema
 const VerifyPasswordSchema = z.object({
@@ -27,10 +27,12 @@ const VerifyPasswordSchema = z.object({
 type TVerifyPasswordRequest = z.infer<typeof VerifyPasswordSchema>;
 
 export default defineEventHandler(async (event: H3Event): Promise<EncryptedRes | ReturnType<typeof createError>> => {
-  const body = await readBody(event);
-  const req = EncryptReqShema.safeParse(body);
   const dbConnector: MongoDBConnector = new MongoDBConnector();
   const twoFATool: IFactorCheckTool = SecFATool();
+
+  const body = await readBody(event);
+  const req = EncryptReqShema.safeParse(body);
+
 
   if (!req.success) {
     console.error("Invalid request body structure:", req.error);
@@ -41,23 +43,30 @@ export default defineEventHandler(async (event: H3Event): Promise<EncryptedRes |
   let decryptedData: TVerifyPasswordRequest | undefined;
 
   try {
+
+
     // 2. 解密和驗證請求
-    shared = calSharedKey(req.data.pubkey, process.env.ECC_PRIVATE_KEY!);
-    if (!shared) throw new Error("Failed to calculate shared key.");
-
-    const decrypt = await RequestEncryption.decryptMessage(req.data.encryptedMessage, shared, req.data.iv);
-    const parsedDecrypt = VerifyPasswordSchema.safeParse(JSON.parse(decrypt));
-    if (!parsedDecrypt.success) {
-      console.error("Invalid decrypted data structure:", parsedDecrypt.error);
-      throw new Error("Invalid decrypted data format.");
+    try {
+      const parsedDecrypt = await IncomingReqEncryptionHandler(event, VerifyPasswordSchema)
+      decryptedData = parsedDecrypt
+      shared = GetSharedKeyHandler(body)
+      
+    } catch (error) {
+      throw InvalidError()
     }
-    decryptedData = parsedDecrypt.data;
+        // 3. 驗證 Token
+        let jwtPayload ;
+        let pasetoPayload ;
+    
+    try {
+      jwtPayload = await verifyJWT(decryptedData.jwt);
+      pasetoPayload = await verifyToken(decryptedData.paseto);
+      if (!jwtPayload || jwtPayload.CUUID !== decryptedData.CUUID) throw new Error("Invalid or expired JWT.");
+      if (!pasetoPayload || pasetoPayload.CUUID !== decryptedData.CUUID) throw new Error("Invalid or expired Paseto token.");
+    } catch (error) {
+       throw createError("token invalid!")
+    }
 
-    // 3. 驗證 Token
-    const jwtPayload = await verifyJWT(decryptedData.jwt);
-    const pasetoPayload = await verifyToken(decryptedData.paseto);
-    if (!jwtPayload || jwtPayload.CUUID !== decryptedData.CUUID) throw new Error("Invalid or expired JWT.");
-    if (!pasetoPayload || pasetoPayload.CUUID !== decryptedData.CUUID) throw new Error("Invalid or expired Paseto token.");
 
     // 4. 連接資料庫並直接驗證密碼雜湊
     const dbNames = useAppConfig().db.conntion.conn_string_env_arr;
@@ -70,35 +79,34 @@ export default defineEventHandler(async (event: H3Event): Promise<EncryptedRes |
     const fetchMutex = new Mutex(); // 用於安全地增加計數器
 
     await Promise.all(connections.map(async (conn) => {
-        try {
-            const userModel = conn.model<IUser>("user", userSchema);
-            // 只查詢需要的密碼雜湊字段
-            const userHashes = await userModel.findOne({ CUUID: decryptedData!.CUUID })
-                                             .select('sha3_256 sha3_384') // 只選擇密碼字段
-                                             .lean(); // 使用 lean() 提高性能
+      try {
+        const userModel = conn.model<IUser>("user", userSchema);
+        // 只查詢需要的密碼雜湊字段
+        const userHashes = await userModel.findOne({ CUUID: decryptedData!.CUUID })
+          .select('sha3_256 sha3_384') // 只選擇密碼字段
+          .lean(); // 使用 lean() 提高性能
 
-            if (userHashes &&
-                userHashes.sha3_256 === decryptedData!.current_password_sha3_256 &&
-                userHashes.sha3_384 === decryptedData!.current_password_sha3_384)
-            {
-                // 如果密碼匹配，增加計數
-                const release = await fetchMutex.acquire();
-                try {
-                    passwordMatchCount++;
-                } finally {
-                    release();
-                }
-            } else if (userHashes) {
-                // 找到了用戶但密碼不匹配
-                console.warn(`Password mismatch found in DB ${conn.name} for CUUID: ${decryptedData!.CUUID}`);
-            } else {
-                // 在此數據庫副本中未找到用戶
-                 console.warn(`User not found in DB ${conn.name} for CUUID: ${decryptedData!.CUUID}`);
-            }
-        } catch (dbError) {
-            console.error(`Error fetching/comparing password hash from DB ${conn.name}:`, dbError);
-            // 記錄錯誤，但繼續檢查其他數據庫
+        if (userHashes &&
+          userHashes.sha3_256 === decryptedData!.current_password_sha3_256 &&
+          userHashes.sha3_384 === decryptedData!.current_password_sha3_384) {
+          // 如果密碼匹配，增加計數
+          const release = await fetchMutex.acquire();
+          try {
+            passwordMatchCount++;
+          } finally {
+            release();
+          }
+        } else if (userHashes) {
+          // 找到了用戶但密碼不匹配
+          console.warn(`Password mismatch found in DB ${conn.name} for CUUID: ${decryptedData!.CUUID}`);
+        } else {
+          // 在此數據庫副本中未找到用戶
+          console.warn(`User not found in DB ${conn.name} for CUUID: ${decryptedData!.CUUID}`);
         }
+      } catch (dbError) {
+        console.error(`Error fetching/comparing password hash from DB ${conn.name}:`, dbError);
+        // 記錄錯誤，但繼續檢查其他數據庫
+      }
     }));
 
     // 5. 判斷密碼是否驗證成功 (達到閾值)
