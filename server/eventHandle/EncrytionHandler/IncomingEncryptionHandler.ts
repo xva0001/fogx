@@ -23,3 +23,15 @@ export const IncomingReqEncryptionHandler = async <T extends ZodRawShape>(event:
     return output.data
 
 }
+export const GetSharedKeyHandler = (body:any)=>{
+
+    let res = EncryptReqShema.safeParse(body)
+
+    if (!res.success) {
+        throw InvalidError()
+    }
+    let  shared = calSharedKey(res.data.pubkey, process.env.ECC_PRIVATE_KEY!);
+    return shared
+
+}
+
