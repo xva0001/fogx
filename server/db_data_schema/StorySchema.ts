@@ -1,48 +1,33 @@
 import mongoose,{ model,Schema } from "mongoose";
 import { CommentSchema, Icomment } from "./IComment";
 
-
-export interface IPost_response {
+// one image only, 1 d array
+//delete over 24 h story
+export interface IStory_response {
   UUID: string;
   UserUUID: string;
   createdDate: Date;
-  title: string;
-  content: string;
-  Image: string[];
-  tags: string[];
-  comments?: Icomment[];
+  Image: string;
 }
 
-export interface IPost {
+export interface IStory {
   UUID: string;
   UserUUID: string;
   createdDate: Date;
-  //for aes
   isPublic:boolean
   iv:string
-  title: string;
-  content: string;
-  Image: string[][];
-  tags: string[];
+  Image: string[];
   objHash:string,
   objSign:string
 }
-
-
-const PostSchema = new Schema<IPost>({
+const StorySchema = new Schema<IStory>({
   UUID: { type: String, required: true, unique: true },
   UserUUID: { type: String, required: true },
   createdDate: { type: Date, required:true, immutable: true },
   //for aes
   isPublic:{type: Boolean,required:true  },
   iv:{type:String,required:true,default:""},
-  title: { type: String, required: true, trim: true, maxlength: 255 },
-  content: { type: String, required: true, maxlength: 5000 },
   Image: {
-    type: [[String]],
-    default: [[]],
-  },
-  tags: {
     type: [String],
     default: [],
   },
@@ -50,9 +35,8 @@ const PostSchema = new Schema<IPost>({
   objSign:{type:String,required:true},
   
 });
+// Create model
+const Story = mongoose.model<IStory>('Story', StorySchema);
 
-// 創建模型
-const Post = mongoose.model<IPost>('Post', PostSchema);
 
-
-export { Post, CommentSchema,PostSchema };
+export { Story, CommentSchema, StorySchema };

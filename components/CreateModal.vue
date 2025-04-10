@@ -15,49 +15,29 @@
       <div class="space-y-4">
         <!-- Image Upload -->
         <div class="border-2 border-dashed rounded-xl p-8 text-center cursor-pointer"
-             :class="isDark ? 'border-gray-700' : 'border-gray-300'"
-             @click="triggerFileInput">
-          <input 
-            type="file" 
-            ref="fileInput" 
-            class="hidden" 
-            accept="image/*" 
-            @change="handleFileChange"
-          >
+          :class="isDark ? 'border-gray-700' : 'border-gray-300'" @click="triggerFileInput">
+          <input type="file" ref="fileInput" class="hidden" accept="image/*" @change="handleFileChange">
           <div v-if="!selectedFile" class="space-y-2">
             <Icon name="bi:image" class="w-12 h-12 mx-auto text-gray-400" />
             <p class="text-gray-500">Click to upload image</p>
           </div>
-          <img v-else 
-               :src="previewUrl" 
-               class="max-h-64 mx-auto rounded"
-               alt="Preview">
+          <img v-else :src="previewUrl" class="max-h-64 mx-auto rounded" alt="Preview">
         </div>
 
         <!-- Text Input (only for posts) -->
         <div v-if="type === 'post'" class="space-y-4">
-          <input 
-            v-model="title"
-            type="text"
-            placeholder="Enter title..."
+          <input v-model="title" type="text" placeholder="Enter title..."
             class="w-full px-4 py-2 rounded-lg border focus:outline-none focus:border-blue-500"
-            :class="isDark ? 'bg-dark border-gray-700 text-gray-300' : 'bg-white border-gray-300'"
-          >
-          <textarea 
-            v-model="content"
-            placeholder="What's on your mind?"
-            rows="4"
+            :class="isDark ? 'bg-dark border-gray-700 text-gray-300' : 'bg-white border-gray-300'">
+          <textarea v-model="content" placeholder="What's on your mind?" rows="4"
             class="w-full px-4 py-2 rounded-lg border focus:outline-none focus:border-blue-500"
-            :class="isDark ? 'bg-dark border-gray-700 text-gray-300' : 'bg-white border-gray-300'"
-          ></textarea>
+            :class="isDark ? 'bg-dark border-gray-700 text-gray-300' : 'bg-white border-gray-300'"></textarea>
         </div>
 
         <!-- Submit Button -->
-        <button 
-          @click="submit"
+        <button @click="submit"
           class="w-full py-2 px-4 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
-          :disabled="!isValid"
-        >
+          :disabled="!isValid">
           {{ type === 'story' ? 'Share Story' : 'Share Post' }}
         </button>
       </div>
@@ -105,20 +85,27 @@ const isValid = computed(() => {
   return true;
 });
 
-const submit = () => {
+const submit = async () => {
   if (!isValid.value) return;
 
   const formData = new FormData();
   if (selectedFile.value) {
-    formData.append('image', selectedFile.value);
+    formData.append('image', await fileToBase64(selectedFile.value));
   }
-  
+
   if (props.type === 'post') {
     formData.append('title', title.value);
     formData.append('content', content.value);
   }
 
-  emit('submit', formData);
+  for (const [key, value] of formData.entries()) {
+    console.log(`${key}:`, value);
+  }
+
+
+  const result = await convertFormData(formData);
+  emit('submit', result);
+  //console.log(result); 
   close();
 };
 
@@ -136,4 +123,4 @@ onUnmounted(() => {
     URL.revokeObjectURL(previewUrl.value);
   }
 });
-</script> 
+</script>

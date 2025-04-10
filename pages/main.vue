@@ -1,38 +1,23 @@
 <template>
   <div class="min-h-screen relative" :class="isDark ? 'bg-dark-900' : 'bg-gray-50'">
     <!-- Sidebar -->
-    <Sidebar 
-      v-model:expanded="sidebarExpanded"
-      :items="navigationItems"
-      :bottom-items="bottomItems"
-      :active-key="currentRoute"
-      @item-click="handleNavigate"
-    />
+    <Sidebar v-model:expanded="sidebarExpanded" :items="navigationItems" :bottom-items="bottomItems"
+      :active-key="currentRoute" @item-click="handleNavigate" />
 
     <!-- Main Content Area -->
-    <div 
-      class="transition-all duration-500"
-      :style="{
-        marginLeft: sidebarExpanded ? '16rem' : '4rem'
-      }"
-    >
+    <div class="transition-all duration-500" :style="{
+      marginLeft: sidebarExpanded ? '16rem' : '4rem'
+    }">
       <div class="max-w-2xl mx-auto py-8 px-4 space-y-6">
         <!-- Header Actions (Moved from Top Navigation Bar) -->
-        <div class="flex items-center justify-between mb-8 p-4 rounded-xl" 
-             :class="isDark ? 'bg-dark-800' : 'bg-white'">
+        <div class="flex items-center justify-between mb-8 p-4 rounded-xl" :class="isDark ? 'bg-dark-800' : 'bg-white'">
           <!-- Search Area -->
           <div class="search-container group flex-1 max-w-xl">
             <div class="relative flex items-center">
-              <input
-                type="text"
-                placeholder="Search..."
+              <input type="text" placeholder="Search..."
                 class="w-full px-4 py-2 rounded-full border focus:outline-none focus:border-blue-500"
-                :class="isDark ? 'bg-dark border-gray-700 text-gray-300' : 'bg-white border-gray-300'"
-              />
-              <div 
-                v-if="isLoading"
-                class="absolute right-3 animate-spin text-primary"
-              >
+                :class="isDark ? 'bg-dark border-gray-700 text-gray-300' : 'bg-white border-gray-300'" />
+              <div v-if="isLoading" class="absolute right-3 animate-spin text-primary">
                 <Loader2 class="w-4 h-4" />
               </div>
             </div>
@@ -45,14 +30,8 @@
               <Bell class="h-5 w-5" />
             </button>
             <!-- 主題切換按鈕 -->
-            <button 
-              class="btn btn-ghost btn-circle"
-              @click="toggleTheme"
-            >
-              <component 
-                :is="isDark ? Sun : Moon" 
-                class="h-5 w-5"
-              />
+            <button class="btn btn-ghost btn-circle" @click="toggleTheme">
+              <component :is="isDark ? Sun : Moon" class="h-5 w-5" />
             </button>
 
 
@@ -105,148 +84,146 @@
           </div>
         </div>
 
-          <!-- Create Post Section -->
-          <div class="rounded-xl shadow-sm p-6" :class="isDark ? 'bg-dark-800' : 'bg-white'"> <!-- 增加 padding -->
-            <div class="flex items-center space-x-4">
-              <div class="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center  overflow-hidden">
-                <img :src="user.icon" alt="" class="w-full h-full object-cover">
-              </div>
-              <input v-model="newPostContent"
-                class="flex-1 px-4 py-2 rounded-full border focus:outline-none focus:border-blue-500"
-                :class="isDark ? 'bg-dark border-gray-700 text-gray-300' : 'bg-white border-gray-300'"
-                :placeholder="postPlaceholder" @focus="openCreatePost" />
+        <!-- Create Post Section -->
+        <div class="rounded-xl shadow-sm p-6" :class="isDark ? 'bg-dark-800' : 'bg-white'"> <!-- 增加 padding -->
+          <div class="flex items-center space-x-4">
+            <div class="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center  overflow-hidden">
+              <img :src="user.icon" alt="" class="w-full h-full object-cover">
             </div>
+            <input v-model="newPostContent"
+              class="flex-1 px-4 py-2 rounded-full border focus:outline-none focus:border-blue-500"
+              :class="isDark ? 'bg-dark border-gray-700 text-gray-300' : 'bg-white border-gray-300'"
+              :placeholder="postPlaceholder" @focus="openCreatePost" />
           </div>
+        </div>
 
-          <!-- Posts Feed -->
-          <div class="space-y-6">
-            <div v-for="post in displayedPosts" 
-               :key="post.id" 
-               class="rounded-xl shadow-sm p-6" 
-               :class="isDark ? 'bg-dark-800' : 'bg-white'">
-              <div class="p-4">
-                <!-- Post Header -->
-                <div class="flex items-center space-x-3">
-                  <div class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
-                    <span class="text-white font-bold">{{ post.icon }}</span>
-                  </div>
-                  <div>
-                    <div class="font-semibold">{{ post.username }}</div>
-                    <div class="text-sm text-gray-500">{{ formatTimeAgo(new Date(post.date)) }}</div>
-                  </div>
+        <!-- Posts Feed -->
+        <div class="space-y-6">
+          <div v-for="post in displayedPosts" :key="post.id" class="rounded-xl shadow-sm p-6"
+            :class="isDark ? 'bg-dark-800' : 'bg-white'">
+            <div class="p-4">
+              <!-- Post Header -->
+              <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
+                  <span class="text-white font-bold">{{ post.icon }}</span>
                 </div>
-
-                <!-- Post Content -->
-                <h1 class="text-xl font-bold mb-4">{{ post.title }}</h1>
-                <div class="space-y-2" :class="isDark ? 'text-gray-300' : 'text-gray-700'">
-                  <p>{{ post.content }}</p>
-                  <ImageBox v-if="post.images" class="pt-2" :images="post.images" />
+                <div>
+                  <div class="font-semibold">{{ post.username }}</div>
+                  <div class="text-sm text-gray-500">{{ formatTimeAgo(new Date(post.date)) }}</div>
                 </div>
+              </div>
 
-                <!-- Tags -->
-                <div class="flex flex-wrap gap-2 mt-4">
-                  <span v-for="tag in post.tags" :key="tag" class="px-3 py-1 rounded-full text-sm"
-                    :class="isDark ? 'text-blue-400 bg-blue-900/30' : 'bg-blue-50 text-blue-600'">
-                    #{{ tag }}
-                  </span>
+              <!-- Post Content -->
+              <h1 class="text-xl font-bold mb-4">{{ post.title }}</h1>
+              <div class="space-y-2" :class="isDark ? 'text-gray-300' : 'text-gray-700'">
+                <p>{{ post.content }}</p>
+                <ImageBox v-if="post.images" class="pt-2" :images="post.images" />
+              </div>
+
+              <!-- Tags -->
+              <div class="flex flex-wrap gap-2 mt-4">
+                <span v-for="tag in post.tags" :key="tag" class="px-3 py-1 rounded-full text-sm"
+                  :class="isDark ? 'text-blue-400 bg-blue-900/30' : 'bg-blue-50 text-blue-600'">
+                  #{{ tag }}
+                </span>
+              </div>
+
+              <!-- Action Buttons -->
+              <div class="flex items-center justify-between mt-4 pt-4 border-t dark:border-gray-800">
+                <div class="flex space-x-6">
+                  <button @click="toggleLike(post)" class="flex items-center space-x-2"
+                    :class="post.isLiked ? 'text-pink-500' : 'text-gray-500 hover:text-pink-500'">
+                    <Icon :name="post.isLiked ? 'bi:balloon-heart-fill' : 'bi:balloon-heart'" class="h-5 w-5" />
+                    <span>{{ post.likes }}</span>
+                  </button>
+                  <button @click="toggleComments(post)" class="flex items-center space-x-2"
+                    :class="post.showComments ? 'text-blue-500' : 'text-gray-500 hover:text-blue-500'">
+                    <Icon name="bi:chat-left-dots" class="w-5 h-5" />
+                    <span>{{ post.commentCount }}</span>
+                  </button>
                 </div>
+                <button @click="sharePost(post)" class="rounded-full text-gray-500 hover:text-green-500">
+                  <Icon name="bi:share" class="h-5 w-5" />
+                </button>
+              </div>
 
-                <!-- Action Buttons -->
-                <div class="flex items-center justify-between mt-4 pt-4 border-t dark:border-gray-800">
-                  <div class="flex space-x-6">
-                    <button @click="toggleLike(post)" class="flex items-center space-x-2"
-                      :class="post.isLiked ? 'text-pink-500' : 'text-gray-500 hover:text-pink-500'">
-                      <Icon :name="post.isLiked ? 'bi:balloon-heart-fill' : 'bi:balloon-heart'" class="h-5 w-5" />
-                      <span>{{ post.likes }}</span>
-                    </button>
-                    <button @click="toggleComments(post)" class="flex items-center space-x-2"
-                      :class="post.showComments ? 'text-blue-500' : 'text-gray-500 hover:text-blue-500'">
-                      <Icon name="bi:chat-left-dots" class="w-5 h-5" />
-                      <span>{{ post.commentCount }}</span>
-                    </button>
+              <!-- Comments Section -->
+              <div v-if="post.showComments" class="mt-4 pt-4 border-t dark:border-gray-800">
+                <!-- Add Comment -->
+                <div class="flex items-center space-x-3 mb-4">
+                  <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                    <span class="text-sm text-white font-bold">{{ currentUser.icon }}</span>
                   </div>
-                  <button @click="sharePost(post)" class="rounded-full text-gray-500 hover:text-green-500">
-                    <Icon name="bi:share" class="h-5 w-5" />
+                  <div class="flex-1 relative">
+                    <input v-model="post.newComment" @keyup.enter="addComment(post)" type="text"
+                      placeholder="Add a comment..."
+                      class="w-full px-4 py-2 rounded-full border focus:outline-none focus:border-blue-500"
+                      :class="isDark ? 'bg-dark border-gray-700 text-gray-300' : 'bg-white border-gray-300'" />
+                  </div>
+                  <button @click="addComment(post)" class="px-4 py-2 text-blue-500 font-semibold disabled:opacity-50"
+                    :disabled="!post.newComment?.trim()">
+                    Post
                   </button>
                 </div>
 
-                <!-- Comments Section -->
-                <div v-if="post.showComments" class="mt-4 pt-4 border-t dark:border-gray-800">
-                  <!-- Add Comment -->
-                  <div class="flex items-center space-x-3 mb-4">
-                    <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-                      <span class="text-sm text-white font-bold">{{ currentUser.icon }}</span>
-                    </div>
-                    <div class="flex-1 relative">
-                      <input v-model="post.newComment" @keyup.enter="addComment(post)" type="text"
-                        placeholder="Add a comment..."
-                        class="w-full px-4 py-2 rounded-full border focus:outline-none focus:border-blue-500"
-                        :class="isDark ? 'bg-dark border-gray-700 text-gray-300' : 'bg-white border-gray-300'" />
-                    </div>
-                    <button @click="addComment(post)" class="px-4 py-2 text-blue-500 font-semibold disabled:opacity-50"
-                      :disabled="!post.newComment?.trim()">
-                      Post
-                    </button>
-                  </div>
-
-                  <!-- Comments List -->
-                  <div class="space-y-4">
-                    <div v-for="comment in post.comments" :key="comment.id" class="relative">
-                      <div v-if="!comment.isEditing">
-                        <Comment :icon="comment.icon" :username="comment.username" :user-i-d="comment.userID"
-                          :date="new Date(comment.date)" :content="comment.content" />
-                        <!-- Comment Actions -->
-                        <div v-if="comment.userID === currentUser.userID" class="absolute top-4 right-4 flex space-x-2">
-                          <button @click="startEdit(comment)"
-                            class="px-3 py-1 rounded-full text-sm bg-blue-500 text-white hover:bg-blue-600">
-                            Edit
-                          </button>
-                          <button @click="deleteComment(post, comment)"
-                            class="px-3 py-1 rounded-full text-sm bg-red-500 text-white hover:bg-red-600">
-                            Delete
-                          </button>
-                        </div>
+                <!-- Comments List -->
+                <div class="space-y-4">
+                  <div v-for="comment in post.comments" :key="comment.id" class="relative">
+                    <div v-if="!comment.isEditing">
+                      <Comment :icon="comment.icon" :username="comment.username" :user-i-d="comment.userID"
+                        :date="new Date(comment.date)" :content="comment.content" />
+                      <!-- Comment Actions -->
+                      <div v-if="comment.userID === currentUser.userID" class="absolute top-4 right-4 flex space-x-2">
+                        <button @click="startEdit(comment)"
+                          class="px-3 py-1 rounded-full text-sm bg-blue-500 text-white hover:bg-blue-600">
+                          Edit
+                        </button>
+                        <button @click="deleteComment(post, comment)"
+                          class="px-3 py-1 rounded-full text-sm bg-red-500 text-white hover:bg-red-600">
+                          Delete
+                        </button>
                       </div>
+                    </div>
 
-                      <!-- Edit Mode -->
-                      <div v-else class="bg-gray-50 dark:bg-dark-lighter rounded-xl p-4">
-                        <textarea v-model="comment.editContent"
-                          class="w-full px-4 py-2 rounded-lg border focus:outline-none focus:border-blue-500 min-h-[100px]"
-                          :class="isDark ? 'bg-dark border-gray-700 text-gray-300' : 'bg-white border-gray-300'"></textarea>
-                        <div class="flex justify-end space-x-2 mt-2">
-                          <button @click="cancelEdit(comment)"
-                            class="px-4 py-2 rounded-full text-sm text-gray-600 hover:text-gray-800">
-                            Cancel
-                          </button>
-                          <button @click="updateComment(post, comment)"
-                            class="px-4 py-2 rounded-full text-sm bg-blue-500 text-white hover:bg-blue-600"
-                            :disabled="!comment.editContent?.trim()">
-                            {{ comment.editContent ? 'Save' : 'Cannot Save Empty' }}
-                          </button>
-                        </div>
+                    <!-- Edit Mode -->
+                    <div v-else class="bg-gray-50 dark:bg-dark-lighter rounded-xl p-4">
+                      <textarea v-model="comment.editContent"
+                        class="w-full px-4 py-2 rounded-lg border focus:outline-none focus:border-blue-500 min-h-[100px]"
+                        :class="isDark ? 'bg-dark border-gray-700 text-gray-300' : 'bg-white border-gray-300'"></textarea>
+                      <div class="flex justify-end space-x-2 mt-2">
+                        <button @click="cancelEdit(comment)"
+                          class="px-4 py-2 rounded-full text-sm text-gray-600 hover:text-gray-800">
+                          Cancel
+                        </button>
+                        <button @click="updateComment(post, comment)"
+                          class="px-4 py-2 rounded-full text-sm bg-blue-500 text-white hover:bg-blue-600"
+                          :disabled="!comment.editContent?.trim()">
+                          {{ comment.editContent ? 'Save' : 'Cannot Save Empty' }}
+                        </button>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-
-            <!-- Loading Indicator -->
-            <div v-if="isLoading" class="flex justify-center items-center py-4">
-              <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-            </div>
-
-            <!-- Intersection Observer Target -->
-            <div ref="infiniteScrollTrigger" class="h-4 w-full"></div>
-
-            <!-- Error Message -->
-            <div v-if="error" class="text-center py-4 text-red-500">
-              {{ error }}
-              <button @click="retryLoading" class="text-blue-500 hover:underline ml-2">
-                Retry
-              </button>
-            </div>
           </div>
+
+          <!-- Loading Indicator -->
+          <div v-if="isLoading" class="flex justify-center items-center py-4">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+          </div>
+
+          <!-- Intersection Observer Target -->
+          <div ref="infiniteScrollTrigger" class="h-4 w-full"></div>
+
+          <!-- Error Message -->
+          <div v-if="error" class="text-center py-4 text-red-500">
+            {{ error }}
+            <button @click="retryLoading" class="text-blue-500 hover:underline ml-2">
+              Retry
+            </button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -293,7 +270,7 @@ import RequestEncryption from '~/shared/Request/requestEncrytion';
 import { calSharedKey, genKeyCurve25519 } from '~/shared/useKeyFn';
 import type { EncryptedRes } from '~/shared/Request/IEncryptRes';
 import type { EncryptReq } from '~/shared/Request/IEncryptReq';
-import type { FetchOptions} from 'ofetch';
+import type { FetchOptions } from 'ofetch';
 import Identicon from 'identicon.js';
 import { sha3_256 } from 'js-sha3';
 
@@ -304,31 +281,31 @@ const currentRoute = ref('home')
 
 // Navigation items
 const navigationItems = computed<MenuItem[]>(() => [
-  { 
+  {
     key: 'home',
     icon: Home,
     label: 'Home',
     route: '/'
   },
-  { 
+  {
     key: 'explore',
     icon: Search,
     label: 'Explore',
     route: '/explore'
   },
-  { 
+  {
     key: 'messages',
     icon: MessageCircle,
     label: 'Messages',
     route: '/messages'
   },
-  { 
+  {
     key: 'notifications',
     icon: Bell,
     label: 'Notifications',
     route: '/notifications'
   },
-  { 
+  {
     key: 'bookmarks',
     icon: Bookmark,
     label: 'Bookmarks',
@@ -337,19 +314,19 @@ const navigationItems = computed<MenuItem[]>(() => [
 ])
 
 const bottomItems = computed<MenuItem[]>(() => [
-  { 
+  {
     key: 'settings',
     icon: Settings,
     label: 'Settings',
     route: '/settings'
   },
-  { 
+  {
     key: 'profile',
     icon: User,
     label: 'Profile',
     route: '/profile'
   },
-  { 
+  {
     key: 'logout',
     icon: LogOut,
     label: 'Logout'
@@ -375,8 +352,8 @@ const handleNavigate = (item: MenuItem) => {
   console.log('Navigate to:', item.route)
 }
 
-const goAccoutManagement = ()=>{
-  navigateTo({path:"/AccountManagement"})
+const goAccoutManagement = () => {
+  navigateTo({ path: "/AccountManagement" })
 }
 
 // 主題切換函數
@@ -486,21 +463,21 @@ onMounted(() => {
 });
 
 interface UserPost {
-    id: number | string;
-    icon: string;
-    username: string;
-    userID: string;
-    date: Date | string; // 確保這裡使用的是正確的 Date 對象
-    title: string;
-    content: string;
-    images?: string[];
-    tags?: string[];
-    likes: number;
-    commentCount: number;
-    isLiked: boolean;
-    showComments?: boolean;
-    newComment?: string;
-    comments: Comment[];
+  id: number | string;
+  icon: string;
+  username: string;
+  userID: string;
+  date: Date | string; // 確保這裡使用的是正確的 Date 對象
+  title: string;
+  content: string;
+  images?: string[];
+  tags?: string[];
+  likes: number;
+  commentCount: number;
+  isLiked: boolean;
+  showComments?: boolean;
+  newComment?: string;
+  comments: Comment[];
 }
 
 // Mock current user data
@@ -514,7 +491,7 @@ const currentUser = ref({
 const currentTimestamp = ref(Date.now());
 
 // Initial posts data with proper date objects
-const initialPosts:UserPost[] = [
+const initialPosts: UserPost[] = [
   {
     id: 1,
     icon: '🌟',
@@ -623,9 +600,9 @@ const toggleLike = async (post: UserPost) => {
     // 使用 fetchEncrypted，POST 通常沒有 payload，但後端可能需要空的加密體？
     // 假設後端不需要加密體，或者 fetchEncrypted 能處理無 payload 的 POST    
     const response = await fetchEncrypted<{ likes: number; isLiked: boolean }>(
-        `/api/posts/${post.id}/like`,
-        { method: 'POST' }
-        // 如果後端需要空加密體: , {}
+      `/api/posts/${post.id}/like`,
+      { method: 'POST' }
+      // 如果後端需要空加密體: , {}
     );
 
     // 使用伺服器返回的最終狀態更新 (可選，如果樂觀更新足夠)
@@ -644,8 +621,8 @@ const toggleLike = async (post: UserPost) => {
 
 // Toggle comments visibility
 const toggleComments = (post: UserPost) => { post.showComments = !post.showComments; };
-const getAuthHeaders = (): Record<string, string> =>{
-const token = sessionStorage.getItem('jwt'); // 或 paseto，取決於後端期望
+const getAuthHeaders = (): Record<string, string> => {
+  const token = sessionStorage.getItem('jwt'); // 或 paseto，取決於後端期望
   if (!token) {
     console.warn('Authentication token not found.');
     // 可以考慮導航到登入頁面
@@ -683,7 +660,7 @@ async function fetchEncrypted<T = any>(
     // 1. 獲取伺服器公鑰 (考慮緩存以提高效率)
     const servPubKeyData = await $fetch<{ pubkey: string }>("/api/ECDHpubkey");
     if (!servPubKeyData || !servPubKeyData.pubkey) {
-        throw new Error("Failed to get server public key.");
+      throw new Error("Failed to get server public key.");
     }
 
     // 2. 生成客戶端密鑰對
@@ -724,16 +701,16 @@ async function fetchEncrypted<T = any>(
     const upperCaseMethod = options.method?.toUpperCase();
     let finalMethod: FetchMethod | undefined = undefined;
     if (upperCaseMethod && ["GET", "HEAD", "PATCDH", "POST", "PUT", "DELETE", "CONNECT", "OPTIONS", "TRACE"].includes(upperCaseMethod)) {
-        // 將驗證過的、大寫的方法字符串斷言為 Nitro 期望的類型
-        finalMethod = upperCaseMethod as FetchMethod; // <--- 關鍵修正
+      // 將驗證過的、大寫的方法字符串斷言為 Nitro 期望的類型
+      finalMethod = upperCaseMethod as FetchMethod; // <--- 關鍵修正
     }
 
 
 
     // 構造最終傳遞給 $fetch 的選項
     const finalFetchOptions = {
-        ...baseFetchOptions,
-        ...(finalMethod && { method: finalMethod }) // 只有當 method 有效時才添加 method 屬性
+      ...baseFetchOptions,
+      ...(finalMethod && { method: finalMethod }) // 只有當 method 有效時才添加 method 屬性
     };
 
 
@@ -803,9 +780,9 @@ const updateComment = async (post: UserPost, comment: Comment) => {
   try {
     // 使用 fetchEncrypted，將新內容作為 payload 加密
     await fetchEncrypted(
-        `/api/posts/${post.id}/comments/${comment.id}`,
-        { method: 'PUT' }, // 或 PATCH
-        { content: newContent } // 要加密的數據
+      `/api/posts/${post.id}/comments/${comment.id}`,
+      { method: 'PUT' }, // 或 PATCH
+      { content: newContent } // 要加密的數據
     );
     comment.editContent = '';
 
@@ -828,8 +805,8 @@ const deleteComment = async (post: UserPost, comment: Comment) => {
   try {
     // 使用 fetchEncrypted，DELETE 通常沒有 payload
     await fetchEncrypted(
-        `/api/posts/${post.id}/comments/${comment.id}`,
-        { method: 'DELETE' }
+      `/api/posts/${post.id}/comments/${comment.id}`,
+      { method: 'DELETE' }
     );
     console.log(`Comment ${comment.id} deleted successfully.`);
 
@@ -849,14 +826,14 @@ const addComment = async (post: UserPost) => {
 
   const tempCommentId = `temp-${Date.now()}`; // 臨時 ID 用於 UI
   const newCommentData: Comment = { // 創建一個部分評論對象用於樂觀更新
-      id: tempCommentId,
-      icon: currentUser.value.icon,
-      username: currentUser.value.username,
-      userID: currentUser.value.userID,
-      date: new Date(),
-      content: content,
-      isEditing: false,
-      editContent: ''
+    id: tempCommentId,
+    icon: currentUser.value.icon,
+    username: currentUser.value.username,
+    userID: currentUser.value.userID,
+    date: new Date(),
+    content: content,
+    isEditing: false,
+    editContent: ''
   };
 
   // 更新 UI
@@ -867,28 +844,30 @@ const addComment = async (post: UserPost) => {
   try {
     // 使用 fetchEncrypted，將評論內容作為 payload 加密
     const savedComment = await fetchEncrypted<Comment>(
-        `/api/posts/${post.id}/comments`,
-        { method: 'POST' },
-        { content: content } // 要加密的數據
+      `/api/posts/${post.id}/comments`,
+      { method: 'POST' },
+      { content: content } // 要加密的數據
     );
     const index = post.comments.findIndex(c => c.id === tempCommentId);
     if (index !== -1) {
-        savedComment.date = new Date(savedComment.date); // 轉換日期
-        post.comments[index] = savedComment;
-        console.log(`Comment added successfully for post ${post.id}:`, savedComment);
+      savedComment.date = new Date(savedComment.date); // 轉換日期
+      post.comments[index] = savedComment;
+      console.log(`Comment added successfully for post ${post.id}:`, savedComment);
     }
   } catch (err: any) {
     console.error(`Error adding comment for post ${post.id}:`, err);
     // 從 UI 中移除臨時評論
     const index = post.comments.findIndex(c => c.id === tempCommentId);
     if (index !== -1) {
-        post.comments.splice(index, 1);
+      post.comments.splice(index, 1);
     }
     post.commentCount--; // 恢復計數
     post.newComment = content; // 恢復輸入框內容以便用戶重試
     alert(`Failed to add comment: ${err.data?.message || 'Unknown error'}`);
   }
 };
+
+//TODO: Note: get post
 
 /* Mock function to fetch more posts
 const fetchMorePosts = async (pageNumber: number) => {
@@ -1001,8 +980,8 @@ const fetchPosts = async (pageNumber: number) => {
 
   try {
     const response = await fetchEncrypted<{ posts: UserPost[], hasMorePages: boolean }>(
-        `/api/posts?page=${pageNumber}`,
-        { method: 'GET' } // GET 請求通常沒有 payload
+      `/api/posts?page=${pageNumber}`,
+      { method: 'GET' } // GET 請求通常沒有 payload
     );
 
     console.log('API Response:', response);
@@ -1014,8 +993,8 @@ const fetchPosts = async (pageNumber: number) => {
         isLiked: post.isLiked ?? false, // <--- 提供默認值        
         date: new Date(post.date), // 確保 date 是 Date 對象
         comments: post.comments.map(comment => ({
-            ...comment,
-            date: new Date(comment.date) // 確保評論日期也是 Date 對象
+          ...comment,
+          date: new Date(comment.date) // 確保評論日期也是 Date 對象
         }))
       }));
 
@@ -1041,40 +1020,61 @@ const fetchPosts = async (pageNumber: number) => {
 };
 
 // Add new methods for handling submissions
-const handleStorySubmit = async (formData: FormData) => {
-    isLoading.value = true; // 可以添加一個特定的加載狀態
-    error.value = null;
-    console.log('Submitting story...');
+const handleStorySubmit = async (storyInputData: any) => {
+  isLoading.value = true; // 可以添加一個特定的加載狀態
+  error.value = null;
+  console.log('Submitting story...');
+  console.log(storyInputData);
 
-    try {
-        // **同樣，假設文件直傳，不加密**
-        const newStory = await $fetch<IStory>('/api/stories', { // 假設端點是 /api/stories
-            method: 'POST',
-            headers: {
-                ...getAuthHeaders(),
-            },
-            body: formData,
-        });
+  const jwt = sessionStorage.getItem('jwt');
+  const paseto = sessionStorage.getItem('paseto');
 
-        if (newStory) {
-            // 假設 API 返回了創建的 Story 對象
-            stories.value.unshift(newStory); // 添加到列表頂部
-            showCreateStory.value = false; // 關閉模態框
-            console.log('Story created successfully:', newStory);
-        }
-    } catch (err: any) {
-        console.error('Error creating story:', err);
-        alert(`Failed to create story: ${err.data?.message || 'Unknown error'}`);
-        error.value = err.data?.message || 'Failed to create story.';
-    } finally {
-        isLoading.value = false;
+  if (!jwt || !paseto) {
+    console.error('Authentication tokens not found');
+    navigateTo('/login');
+    return;
+  }
+
+  let shared :string
+  try {
+    const servPubKeyData = await $fetch<{ pubkey: string }>("/api/ECDHpubkey");
+    if (!servPubKeyData || !servPubKeyData.pubkey) {
+      throw new Error("Failed to get server public key.");
     }
+
+    const pair = genKeyCurve25519()
+    const clientPubKey = pair.getPublic("hex")
+    shared = calSharedKey(servPubKeyData.pubkey, pair.getPrivate("hex"))
+    storyInputData["jwt"] = jwt;
+    storyInputData["paseto"] = paseto;
+    let encrypt:any = await RequestEncryption.encryptMessage(JSON.stringify(storyInputData),shared)
+    
+
+    const newStory = await $fetch<IStory>('/api/stories/add', { // 假設端點是 /api/stories
+      method: 'POST',
+      body: JSON.stringify(encrypt),
+    });
+    throw new Error("Testing")
+
+    if (newStory) {
+      // 假設 API 返回了創建的 Story 對象
+      stories.value.unshift(newStory); // 添加到列表頂部
+      showCreateStory.value = false; // 關閉模態框
+      console.log('Story created successfully:', newStory);
+    }
+  } catch (err: any) {
+    console.error('Error creating story:', err);
+    alert(`Failed to create story: ${err.data?.message || 'Unknown error'}`);
+    error.value = err.data?.message || 'Failed to create story.';
+  } finally {
+    isLoading.value = false;
+  }
 };
 
 const handlePostSubmit = async (formData: FormData) => {
   isLoading.value = true; // 可以添加一個特定的加載狀態
   error.value = null;
-  console.log('Submitting post...');  
+  console.log('Submitting post...');
   try {
     // FormData 不能直接 JSON.stringify 加密，需要後端支持 multipart/form-data
     // 如果後端只接受 JSON，需要先上傳文件獲取 URL，再將 URL 和其他文本數據加密發送
@@ -1099,8 +1099,8 @@ const handlePostSubmit = async (formData: FormData) => {
 
     // **暫時恢復為不加密的 $fetch，因為加密 FormData 很複雜**
     // **你需要根據後端實際情況決定如何處理文件上傳和加密**
-    
-    
+
+
     // Here you would typically make an API call to save the post
     //console.log('Submitting post:', formData);
 
@@ -1115,11 +1115,11 @@ const handlePostSubmit = async (formData: FormData) => {
     });
 
     if (newPost) {
-        newPost.date = new Date(newPost.date); // 轉換日期
-        newPost.comments = newPost.comments?.map(c => ({...c, date: new Date(c.date)})) || [];
-        displayedPosts.value.unshift(newPost);
-        showCreatePost.value = false; // 關閉模態框
-        console.log('Post created successfully:', newPost);
+      newPost.date = new Date(newPost.date); // 轉換日期
+      newPost.comments = newPost.comments?.map(c => ({ ...c, date: new Date(c.date) })) || [];
+      displayedPosts.value.unshift(newPost);
+      showCreatePost.value = false; // 關閉模態框
+      console.log('Post created successfully:', newPost);
     }
     // request to save the post to the server
     // TODO:　request to save the post to the server
@@ -1142,7 +1142,6 @@ const sharePost = (post: UserPost) => { shareModalPost.value = post; };
 </script>
 
 <style scoped>
-
 /* 添加暗色模式的背景色變數 */
 :root {
   --dark-900: #1a1a1a;
@@ -1156,13 +1155,13 @@ const sharePost = (post: UserPost) => { shareModalPost.value = post; };
 /* 增強卡片陰影效果 */
 .shadow-sm {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1),
-              0 1px 2px rgba(0, 0, 0, 0.06);
+    0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
 /* 暗色模式下的陰影 */
 :is(.dark .shadow-sm) {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3),
-              0 1px 2px rgba(0, 0, 0, 0.2);
+    0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 /* 平滑過渡 */
@@ -1181,9 +1180,9 @@ const sharePost = (post: UserPost) => { shareModalPost.value = post; };
 
 /* 確保所有可能變化的元素都有平滑過渡 */
 * {
-  transition: background-color 0.3s ease, 
-              color 0.3s ease,
-              border-color 0.3s ease;
+  transition: background-color 0.3s ease,
+    color 0.3s ease,
+    border-color 0.3s ease;
 }
 
 /* Add smooth transitions */
