@@ -1043,10 +1043,12 @@ const handleStorySubmit = async (storyInputData: any) => {
     }
 
     const pair = genKeyCurve25519()
-    const clientPubKey = pair.getPublic("hex")
+    //const clientPubKey = pair.getPublic("hex")
     shared = calSharedKey(servPubKeyData.pubkey, pair.getPrivate("hex"))
     storyInputData["jwt"] = jwt;
     storyInputData["paseto"] = paseto;
+    storyInputData["requestTime"] = new Date().toISOString()
+    console.log(storyInputData)
     let encrypt:any = await RequestEncryption.encryptMessage(JSON.stringify(storyInputData),shared)
     
 
