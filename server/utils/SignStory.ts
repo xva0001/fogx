@@ -16,8 +16,6 @@ uuid: string,
   isPublic:boolean,
   iv:string,
   ImageBase64: string,
-  objHash:string,
-  objSign:string,
   shareNum:number,
   threshold:number
 ){
