@@ -11,12 +11,12 @@ export interface IStory_response {
 }
 
 export interface IStory {
-  UUID: string;
-  UserUUID: string;
-  createdDate: Date;
-  isPublic:boolean
-  iv:string
-  Image: string[];
+  UUID: string,
+  UserUUID: string,
+  createdDate: Date,
+  isPublic:boolean,
+  iv:string,
+  Image: string[],
   objHash:string,
   objSign:string
 }

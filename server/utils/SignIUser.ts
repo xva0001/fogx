@@ -41,14 +41,15 @@ export async function createSignedPackets(
             objHash: "",  // 先佔位
             objSign: "",  // 先佔位
         };
-        console.log("source :",JSON.stringify(db_packet));
+        
+        //console.log("source :",JSON.stringify(db_packet));
         
 
         const cleanPacket: IUser_Hash = { ...db_packet, objHash: "", objSign:"" };
         delete cleanPacket.updatedDate;
 
         let string_packet = JSON.stringify(cleanPacket);
-        console.log("String Packet : ",string_packet);
+        //console.log("String Packet : ",string_packet);
         
         let org = sha3_256(string_packet);
         if (org != sha3_256_userHash(db_packet)) {
