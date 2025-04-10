@@ -138,7 +138,7 @@ export async function getCorrectUser(
     try {
         //console.log(keyShares);
 
-        if (keyShares.length < 2) {
+        if (keyShares.length < getThreshold()) {
             throw new Error("Insufficient shares for secret recovery");
         }
 
