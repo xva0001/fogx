@@ -1047,6 +1047,7 @@ const handleStorySubmit = async (storyInputData: any) => {
     shared = calSharedKey(servPubKeyData.pubkey, pair.getPrivate("hex"))
     storyInputData["jwt"] = jwt;
     storyInputData["paseto"] = paseto;
+    storyInputData["isPublic"] = true
     storyInputData["requestTime"] = new Date().toISOString()
     console.log(storyInputData)
     let encrypt:any = await RequestEncryption.encryptMessage(JSON.stringify(storyInputData),shared)
