@@ -31,10 +31,8 @@ async function share(base64Img:string,chunk = 64,parts:number,threshold:number){
     const resultForCombined :string[] =  new Array(splitedArray.length)
 
     await Promise.all(splitedArray.map(async (item,index)=>{
-
         const result = await secrets.combine(item)
         resultForCombined[index] = result
-
     }))
     //ret
     return resultForCombined.join("")

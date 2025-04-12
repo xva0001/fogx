@@ -73,7 +73,7 @@
                 <div class="absolute inset-0 bg-gradient-to-b from-transparent to-black/50"></div>
                 <div class="absolute top-4 left-1/2 transform -translate-x-1/2">
                   <div class="w-10 h-10 rounded-full border-2 border-blue-500 overflow-hidden">
-                    <img :src="story.userImage" class="w-full h-full object-cover" :alt="story.username">
+                    <!--  --><img :src="story.userImage" alt="" class="w-full h-full object-cover">
                   </div>
                 </div>
                 <span class="absolute bottom-4 left-4 text-white text-sm font-medium">
@@ -442,6 +442,7 @@ onMounted(() => {
 
   // 2. 首次加載貼文
   fetchPosts(1);
+  fetchStory()
 
   // 3. 設置無限滾動 (假設 setupInfiniteScroll 返回 observer)
   const observer = setupInfiniteScroll();
@@ -543,31 +544,94 @@ const error = ref<string | null>(null);
 
 // Add stories data
 const stories = ref<IStory[]>([
-  {
-    id: 1,
-    username: 'TechEnthusiast',
-    userImage: 'https://picsum.photos/100/100?random=1',
-    image: 'https://picsum.photos/400/600?random=1',
-  },
-  {
-    id: 2,
-    username: 'ArtisticSoul',
-    userImage: 'https://picsum.photos/100/100?random=2',
-    image: 'https://picsum.photos/400/600?random=2',
-  },
-  {
-    id: 3,
-    username: 'TravelBug',
-    userImage: 'https://picsum.photos/100/100?random=3',
-    image: 'https://picsum.photos/400/600?random=3',
-  },
-  {
-    id: 4,
-    username: 'FoodLover',
-    userImage: 'https://picsum.photos/100/100?random=4',
-    image: 'https://picsum.photos/400/600?random=4',
-  },
+  // {
+  //   id: 1,
+  //   username: 'TechEnthusiast',
+  //   userImage: 'https://picsum.photos/100/100?random=1',
+  //   image: 'https://picsum.photos/400/600?random=1',
+  // },
+  // {
+  //   id: 2,
+  //   username: 'ArtisticSoul',
+  //   userImage: 'https://picsum.photos/100/100?random=2',
+  //   image: 'https://picsum.photos/400/600?random=2',
+  // },
+  // {
+  //   id: 3,
+  //   username: 'TravelBug',
+  //   userImage: 'https://picsum.photos/100/100?random=3',
+  //   image: 'https://picsum.photos/400/600?random=3',
+  // },
+  // {
+  //   id: 4,
+  //   username: 'FoodLover',
+  //   userImage: 'https://picsum.photos/100/100?random=4',
+  //   image: 'https://picsum.photos/400/600?random=4',
+  // },
 ]);
+
+const fetchStory =  async () => {
+  //req
+
+  const jwt = sessionStorage.getItem('jwt');
+  const paseto = sessionStorage.getItem('paseto');
+
+  if (!jwt || !paseto) {
+    console.error('Authentication tokens not found');
+    navigateTo('/login');
+    return;
+  }
+
+  let shared: string
+  try {
+    const servPubKeyData = await $fetch<{ pubkey: string }>("/api/ECDHpubkey");
+    if (!servPubKeyData || !servPubKeyData.pubkey) {
+      throw new Error("Failed to get server public key.");
+    }
+
+    const pair = genKeyCurve25519()
+    const clientPubKey = pair.getPublic("hex")
+    shared = calSharedKey(servPubKeyData.pubkey, pair.getPrivate("hex"))
+
+    let encrypted: any = await RequestEncryption.encryptMessage(JSON.stringify({ jwt: jwt, paseto: paseto }), shared)
+    encrypted["pubkey"] = clientPubKey
+
+    const req_forStory = await $fetch("/api/stories/userStoriesGet", {
+      method: "POST",
+      body: JSON.stringify(encrypted)
+    }).then((res: any) => RequestEncryption.decryptMessage(res.encryptedMessage, shared, res.iv))
+
+    let arrIStory: IStory[] = JSON.parse(req_forStory)
+
+    for (let index = 0; index < arrIStory.length; index++) {
+      const element = arrIStory[index];
+       //throw new Error("Testing")
+    /**
+     * if (response.user.icon == null) {
+        //response.user.username
+        response.user.icon = new Identicon(sha3_256(response.user.username), 100).toString()
+        //data:image/png;base64,
+
+      }
+      response.user.icon = "data:image/png;base64," + response.user.icon
+     */
+
+     if (element.userImage == element.username) {
+      element.userImage = new Identicon(sha3_256(element.username), 100).toString()
+     }
+      element.userImage = "data:image/png;base64,"+element.userImage
+
+      stories.value.unshift(element)
+    }
+
+  } catch (e){
+    console.log(e);
+    
+    console.log("story get error");
+
+  }
+
+}
 
 // Add placeholder text state
 const postPlaceholder = ref("What's on your mind?");
@@ -1035,7 +1099,7 @@ const handleStorySubmit = async (storyInputData: any) => {
     return;
   }
 
-  let shared :string
+  let shared: string
   try {
     const servPubKeyData = await $fetch<{ pubkey: string }>("/api/ECDHpubkey");
     if (!servPubKeyData || !servPubKeyData.pubkey) {
@@ -1047,19 +1111,37 @@ const handleStorySubmit = async (storyInputData: any) => {
     shared = calSharedKey(servPubKeyData.pubkey, pair.getPrivate("hex"))
     storyInputData["jwt"] = jwt;
     storyInputData["paseto"] = paseto;
+    storyInputData["image"] = storyInputData["image"]
+    storyInputData["isPublic"] = true
     storyInputData["requestTime"] = new Date().toISOString()
     console.log(storyInputData)
-    let encrypt:any = await RequestEncryption.encryptMessage(JSON.stringify(storyInputData),shared)
-    
+    let encrypt: any = await RequestEncryption.encryptMessage(JSON.stringify(storyInputData), shared)
+    encrypt["pubkey"] = pair.getPublic("hex")
 
-    const newStory = await $fetch<IStory>('/api/stories/add', { // 假設端點是 /api/stories
+    const req = await $fetch('/api/stories/add', { // 假設端點是 /api/stories
       method: 'POST',
       body: JSON.stringify(encrypt),
-    });
-    throw new Error("Testing")
+    }).then((res: any) => RequestEncryption.decryptMessage(res.encryptedMessage, shared, res.iv));
+    let newStory = JSON.parse(req)
+    //throw new Error("Testing")
+    /**
+     * if (response.user.icon == null) {
+        //response.user.username
+        response.user.icon = new Identicon(sha3_256(response.user.username), 100).toString()
+        //data:image/png;base64,
 
+      }
+      response.user.icon = "data:image/png;base64," + response.user.icon
+     */
     if (newStory) {
+      
+      if (newStory.userImage == newStory.username ) {
+        newStory.userImage = new Identicon(sha3_256(newStory.userImage), 100).toString()
+      }
+      newStory.userImage = "data:image/png;base64,"+newStory.userImage
+
       // 假設 API 返回了創建的 Story 對象
+
       stories.value.unshift(newStory); // 添加到列表頂部
       showCreateStory.value = false; // 關閉模態框
       console.log('Story created successfully:', newStory);

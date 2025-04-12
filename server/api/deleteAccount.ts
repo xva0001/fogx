@@ -21,7 +21,7 @@ export default defineEventHandler(async (event) => {
             }
         }
         await db.dbConnsClose()
-        if (countCum == countCum) {
+        if (countCum == connNum) {
             return {
                 success: true
             }

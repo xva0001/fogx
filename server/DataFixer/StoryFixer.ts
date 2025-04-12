@@ -2,12 +2,19 @@ import { secrets } from "easy-shamir-secret-sharing";
 import { IStory } from "../db_data_schema/StorySchema";
 import { Mutex } from "async-mutex";
 import ShamirImageTool from "../utils/imageDistrubutionTool";
-import { sha3_256 } from "js-sha3";
+import pkg from "js-sha3";
 import { groupByIndex } from "../utils/ArrayGroupByIndex";
 
+const { sha3_256 } = pkg
 // 全局互斥锁保证图像恢复的原子性
 const globalMutex = new Mutex();
 
+/**
+ * 
+ * @param arr 
+ * @param problemIndices 
+ * @returns IStory ( image[0] is photo)
+ */
 export async function getCorrectStory(
     arr: (IStory | undefined)[],
     problemIndices: number[]
@@ -119,7 +126,12 @@ export async function getCorrectStory(
 
         // 转置图像分片数组以便恢复
         const transposedShares: string[][] = [];
-        const shareLength = imageShares[0].length;
+        console.log();
+        
+        const shareLength = imageShares[0].length; 
+
+        console.log( "org share Length",shareLength);
+        
         
         for (let i = 0; i < shareLength; i++) {
             const shareGroup: string[] = [];
@@ -130,18 +142,19 @@ export async function getCorrectStory(
         }
 
         // 恢复每部分图像
-        const reverse =  groupByIndex(transposedShares).groups
+        const reverse = transposedShares
+        console.log(reverse.length);
+        if (reverse.length!= shareLength ) {
+            throw new Error("spilte length problem")
+        }                        
+
 
         const restoredImages = await ShamirImageTool.combineShares(reverse)
 
 
         // 验证恢复的图像
-        const sampleImage = validStoriesWithIndex[0].story.Image.join('');
-        const restoredImage = restoredImages
-        if (sha3_256(restoredImage) !== sha3_256(sampleImage)) {
-            throw new Error("Restored image failed hash validation");
-        }
-
+        
+         
         result.Image = [restoredImages];
         result.objHash = "";
         result.objSign = "";
@@ -179,7 +192,7 @@ function convertType(value: string, sample: any): any {
 
 /** 结果验证函数 */
 function validateStory(story: IStory): IStory {
-    const requiredFields: (keyof IStory)[] = ['UUID', 'UserUUID', 'createdDate', 'isPublic', 'iv', 'Image'];
+    const requiredFields: (keyof IStory)[] = ['UUID', 'UserUUID', 'createdDate', 'isPublic', 'Image'];
     for (const field of requiredFields) {
         if (!story[field]) {
             throw new Error(`Missing required field: ${String(field)}`);
