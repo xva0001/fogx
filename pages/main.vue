@@ -1047,16 +1047,19 @@ const handleStorySubmit = async (storyInputData: any) => {
     shared = calSharedKey(servPubKeyData.pubkey, pair.getPrivate("hex"))
     storyInputData["jwt"] = jwt;
     storyInputData["paseto"] = paseto;
+    storyInputData["image"] = storyInputData["image"]
     storyInputData["isPublic"] = true
     storyInputData["requestTime"] = new Date().toISOString()
     console.log(storyInputData)
     let encrypt:any = await RequestEncryption.encryptMessage(JSON.stringify(storyInputData),shared)
-    
+    encrypt["pubkey"] = pair.getPublic("hex")
 
     const newStory = await $fetch<IStory>('/api/stories/add', { // 假設端點是 /api/stories
       method: 'POST',
       body: JSON.stringify(encrypt),
     });
+
+
     throw new Error("Testing")
 
     if (newStory) {

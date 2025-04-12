@@ -15,6 +15,6 @@ export const IstorySchemaVaildatorRequestObj = z.object(
         paseto: z.string(),
         image: z.string(),
         isPublic: z.boolean() ,
-        iv:z.string().optional(),
+        iv: z.string().optional(),
         requestTime: z.string().datetime({ offset: true })
     })

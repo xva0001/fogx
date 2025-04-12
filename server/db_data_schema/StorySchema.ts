@@ -26,7 +26,7 @@ const StorySchema = new Schema<IStory>({
   createdDate: { type: Date, required:true, immutable: true },
   //for aes
   isPublic:{type: Boolean,required:true  },
-  iv:{type:String,required:true,default:""},
+  iv:{type:String, default:""},
   Image: {
     type: [String],
     default: [],

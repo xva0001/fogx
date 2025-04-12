@@ -19,17 +19,21 @@ export const StoryInsertionHandler = async (event:H3Event)=>{
     let decrypted
     const body = await readBody(event)
     try {
+        console.log("hi");
+        
         decrypted = await IncomingReqEncryptionHandler(event,IstorySchemaVaildatorRequestObj);
         /**
          * extend checking
          * 
          */
+        //console.log(decrypted);
+        
 
-        if (decrypted.isPublic === true && (decrypted.iv != undefined)) {
-            throw InvalidError()
+        if (decrypted.isPublic === true && (decrypted.iv != undefined )) {
+            throw createError("iv should not exist")
         }
         if (decrypted.isPublic === false && decrypted.iv == undefined ) {
-            throw InvalidError()
+            throw createError("iv should exist")
         }
 
         if (decrypted.isPublic === true && decrypted.iv == undefined) {
@@ -37,13 +41,15 @@ export const StoryInsertionHandler = async (event:H3Event)=>{
             decrypted.iv = ""
             let result = await isValidImage(decrypted.image)
             if (result === false) {
+                console.log("this is not a image");
+                
                 throw new Error("this is not a image")
             }
         }
 
         shared = GetSharedKeyHandler(body)
     } catch (error) {
-        throw InvalidError()
+        throw createError("err on "+ error)
     }
 
     let jwtPayload 
@@ -65,7 +71,7 @@ export const StoryInsertionHandler = async (event:H3Event)=>{
         userUUID = jwtPayload.CUUID as string
         
     } catch (error) {
-        throw new Error("TOKEN ERROR!")
+        throw createError("TOKEN ERROR!")
     }
 
 
@@ -92,7 +98,15 @@ export const StoryInsertionHandler = async (event:H3Event)=>{
             objSign:""
         }
 
+        console.log("UUID : ",newStory.UUID);
+        
+
         let answer = await InsertStory(dbConnector,newStory,decrypted.image)
+
+        console.log(answer.length);
+        
+
+        // return {}
 
         let response : Record<string,any> = {};
         if (answer["rollback"]!=undefined) {

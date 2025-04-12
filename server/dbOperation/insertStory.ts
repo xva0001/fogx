@@ -1,4 +1,5 @@
 import { MongoDBConnector } from "#imports";
+import { object } from "zod";
 import { IStory, StorySchema } from "../db_data_schema/StorySchema";
 import { findStoryByID } from "./findStoryByID";
 
@@ -26,13 +27,13 @@ export async function InsertStory(dbConnector:MongoDBConnector, orgStory : IStor
         if (share.length != connections.length) {
             throw  new Error("share part and connection number unmatch")
         }
-
         //try insert data
         await Promise.all(connections.map(async(conn,index)=>{
-            const storyModel = conn.model("story",StorySchema)
+            const storyModel = conn.model("story",StorySchema)   
             const newStory = new storyModel(share[index])
             await newStory.save();
         }));
+
         let response :Record<string,any> = {}
         let countDBData = await findStoryByID(dbConnector,orgStory.UUID)
         if (countDBData.counter >= threshold) {
@@ -57,6 +58,7 @@ export async function InsertStory(dbConnector:MongoDBConnector, orgStory : IStor
         return response
 
     } catch (error) {
+        
         throw error
     }
     
