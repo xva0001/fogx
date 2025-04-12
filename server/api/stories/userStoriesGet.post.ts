@@ -1,10 +1,18 @@
 import { getCorrectStory } from "~/server/DataFixer/StoryFixer"
 import { findPublicStory } from "~/server/dbOperation/findPublicStory"
+import { getUserInfo } from "~/server/dbOperation/getUserInfo"
 import { GetSharedKeyHandler, IncomingReqEncryptionHandler } from "~/server/eventHandle/EncrytionHandler/IncomingEncryptionHandler"
 import { generalTokenSchema } from "~/server/request_sheme/general/generalTokenSchema"
 import { verifyJWT } from "~/server/token_validator/jwt"
 import { verifyToken } from "~/server/token_validator/paseto"
 import RequestEncryption from "~/shared/Request/requestEncrytion"
+
+interface IStory_resp {
+    id : string|number;
+    username : string;
+    userImage : string;
+    image : string;   
+   }
 
 export default defineEventHandler(async (event)=>{
 
@@ -64,14 +72,34 @@ const body = await readBody(event)
             story.push(await getCorrectStory(element,porblemArr))
         }
 
+        let arr_story_resp  : IStory_resp[] = []
+        let problemInt : number[] = []
+        for (let index = 0; index < story.length; index++) {
+            const item = story[index];
+            const user = await getUserInfo(dbConnector,item.UserUUID)
+            if (user==null) {
+                problemInt.push(index)
+                continue
+            }
+            const newItem : IStory_resp = {
+                id : item.UUID,
+                username : user.username,
+                userImage: user.icon || user.username,
+                image : item.Image[0]
+                
+            }
+            arr_story_resp.push(newItem)
+        }
 
         //make a correct respon for front end
-        //todo :^
+        //todo : ^
 
-        let response = await RequestEncryption.encryptMessage(JSON.stringify(story),shared)
+        let response = await RequestEncryption.encryptMessage(JSON.stringify(arr_story_resp),shared)
         return response        
 
     } catch (error) {
+        console.log(error);
+        
         return {
             success : false,
 
@@ -79,7 +107,5 @@ const body = await readBody(event)
     }finally{
         await dbConnector.dbConnsClose()
     }
-
-
 
 })

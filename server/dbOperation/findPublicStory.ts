@@ -17,7 +17,7 @@ export const findPublicStory = async (dbConnector: MongoDBConnector, numLimit = 
                 createdDate: { $gte: twentyFourHoursAgo }
             })
             .sort({ createdDate: -1 })
-            .limit(numLimit)
+            .limit(numLimit).lean()
 
         for (const story of dbContent) {
             allStories.push(cleanMongoObject(story) as IStory)

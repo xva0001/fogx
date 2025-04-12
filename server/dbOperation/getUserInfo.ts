@@ -4,12 +4,8 @@ import { getCorrectUser } from '~/server/DataFixer/UserInformationFixer';
 import { cleanMongoObject } from '~/server/utils/cleanObject';
 import { getThreshold } from '~/server/utils/getShareSettings';
 
-export async function getUserInfo(CUUID: string): Promise<IUser | null> {
-  const dbConnector = new MongoDBConnector();
-  const dbNames = useAppConfig().db.connection.conn_string_env_arr;
-  await dbConnector.dbConnsOpen(dbNames);
+export async function getUserInfo(dbConnector:MongoDBConnector,CUUID: string): Promise<IUser | null> {
   const connections = dbConnector.getDbConnections();
-
   try {
     const userArr: (IUser | undefined)[] = [];
     const problemInt: number[] = [];
@@ -18,14 +14,14 @@ export async function getUserInfo(CUUID: string): Promise<IUser | null> {
       connections.map(async (conn, index) => {
         try {
           const userModel = conn.model<IUser>("user", userSchema);
-          const userInfo = await userModel.findOne({ CUUID });
+          const userInfo = await userModel.findOne({ CUUID }).lean();
 
           //do verify here !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
           
           if (userInfo) {
             userArr.push(cleanMongoObject(userInfo) as IUser);
-
+            //console.log(userInfo);
           } else {
             userArr.push(undefined);
             problemInt.push(index);
@@ -44,7 +40,7 @@ export async function getUserInfo(CUUID: string): Promise<IUser | null> {
 
     const user = await getCorrectUser(userArr, problemInt);
     return user;
-  } finally {
-    await dbConnector.dbConnsClose();
+  }catch(e){
+    throw e
   }
 }

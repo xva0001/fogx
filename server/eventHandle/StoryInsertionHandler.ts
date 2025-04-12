@@ -121,8 +121,9 @@ export const StoryInsertionHandler = async (event:H3Event)=>{
         
         let userInfo
         try {
-            userInfo = await getUserInfo(userUUID)    
+            userInfo = await getUserInfo(dbConnector,userUUID)    
         } catch (error) {
+            console.log(error);
             
         }
 
