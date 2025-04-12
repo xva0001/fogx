@@ -1,7 +1,7 @@
 import pkg from "js-sha3"
 import { IStory } from "../db_data_schema/StorySchema"
 import ShamirImageTool from "./imageDistrubutionTool"
-import { groupByIndex } from "./ArrayGroupByIndex"
+import { groupByIndex, groupByIndex_V2 } from "./ArrayGroupByIndex"
 import { sha3_256_storyHash } from "./HashedStory"
 import SignMessage from "~/shared/Request/signMessage"
 
@@ -31,8 +31,7 @@ uuid: string,
         throw new Error("ShamirImageTool : hash result inconsistant")
     }
 
-    const {groups:reverse}  = groupByIndex(imageShares)
-
+    let   reverse = groupByIndex_V2(imageShares).groups
 
     for (let index = 0; index < shareNum; index++) {
         const db_packet : IStory =
@@ -48,7 +47,7 @@ uuid: string,
         }
 
         let string_packet = JSON.stringify(db_packet)
-        let str_hash = sha3_256_storyHash(db_packet)
+        let str_hash = sha3_256_storyHash(db_packet) // function hash
         db_packet.objHash = str_hash
         
         
@@ -57,7 +56,7 @@ uuid: string,
                 process.env.EDDSA_SIGN_PRIVATE_KEY!,
                 string_packet           //include sha3_256
             )
-
+            ////  pure string hash = function hash ?
             if (signObj.hash != db_packet.objHash ) {
                 throw new Error("sign Message Error : inconsistant hash")
             }
@@ -79,9 +78,7 @@ uuid: string,
         arr_packet[index] = db_packet   
     }
 
-    return arr_packet
-
-
-    
+    return arr_packet   
 
 }
+
