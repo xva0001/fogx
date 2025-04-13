@@ -126,12 +126,7 @@ export async function getCorrectStory(
 
         // 转置图像分片数组以便恢复
         const transposedShares: string[][] = [];
-        console.log();
-        
         const shareLength = imageShares[0].length; 
-
-        console.log( "org share Length",shareLength);
-        
         
         for (let i = 0; i < shareLength; i++) {
             const shareGroup: string[] = [];
@@ -143,7 +138,6 @@ export async function getCorrectStory(
 
         // 恢复每部分图像
         const reverse = transposedShares
-        console.log(reverse.length);
         if (reverse.length!= shareLength ) {
             throw new Error("spilte length problem")
         }                        

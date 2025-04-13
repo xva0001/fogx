@@ -15,10 +15,7 @@ export async function getUserInfo(dbConnector:MongoDBConnector,CUUID: string): P
         try {
           const userModel = conn.model<IUser>("user", userSchema);
           const userInfo = await userModel.findOne({ CUUID }).lean();
-
           //do verify here !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-          
           if (userInfo) {
             userArr.push(cleanMongoObject(userInfo) as IUser);
             //console.log(userInfo);
