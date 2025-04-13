@@ -1,4 +1,5 @@
 import { getCorrectStory } from "~/server/DataFixer/StoryFixer"
+import { deleteOver24HStory } from "~/server/dbOperation/deleteOver24HStory"
 import { findPublicStory } from "~/server/dbOperation/findPublicStory"
 import { getUserInfo } from "~/server/dbOperation/getUserInfo"
 import { GetSharedKeyHandler, IncomingReqEncryptionHandler } from "~/server/eventHandle/EncrytionHandler/IncomingEncryptionHandler"
@@ -58,6 +59,7 @@ const body = await readBody(event)
     const dbNames = useAppConfig().db.conntion.conn_string_env_arr;
     try {
         await dbConnector.dbConnsOpen(dbNames)
+        await deleteOver24HStory(dbConnector)
         let res = await findPublicStory(dbConnector)
         let story = []
         for (let index = 0; index < res.length; index++) {
