@@ -52,4 +52,23 @@ async function share(base64Img:string,chunk = 64,parts:number,threshold:number){
         return await combine(splittedArray);
     }
 }
-export default ShamirImageTool
+/**
+ * for long string, use chunk
+ */
+class ShaimirStringSplitTool{
+    static async splitAndShare(
+        inputString: string,
+        parts: number,
+        threshold: number,
+        chunkSize: number = 64
+    ): Promise<string[][]> {
+        return await share(inputString, chunkSize, parts, threshold);
+    }
+
+    static async combineShares(splittedArray: string[][]): Promise<string> {
+        return await combine(splittedArray);
+    }
+}
+
+export { ShaimirStringSplitTool };
+export default ShamirImageTool;

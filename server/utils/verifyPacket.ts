@@ -4,6 +4,8 @@ import { sha3_256_storyHash } from "~/server/utils/HashedStory";
 import SignMessage from "~/shared/Request/signMessage";
 import { IStory } from "../db_data_schema/StorySchema";
 import { IUser } from "../db_data_schema/UserSchema";
+import { IPost } from "../db_data_schema/PostSchema";
+import consola from "consola";
 
 class verifyPacket{
 
@@ -76,6 +78,37 @@ class verifyPacket{
            console.error(`Error during story verification for UUID ${story.UUID}:`, error);
            return false;
        }
+   }
+   static verifyPost(post : IPost,publicKey: string = process.env.EDDSA_SIGN_PUBLIC_KEY!) : boolean {
+    if (!publicKey) {
+        console.error("Public key for story verification is missing.");
+           return false;
+    }
+
+    try {
+        
+        const calculatedHash = sha3_256_postHash(post)
+
+        if (calculatedHash != post.objHash) {
+            consola.warn(`Post ${post.UUID} - org hash is ${post.objHash}, calculated hash : ${calculatedHash}: unmatch`)
+            return false;
+        }
+
+        const isSignValid = SignMessage.verify(publicKey,post.objSign,String(post.objHash))
+
+        if (!isSignValid) {
+            consola.warn(`Post ${post.UUID} - org hash is ${post.objHash}, calculated hash : ${calculatedHash} : sign failed `)
+        }
+        return isSignValid
+
+
+    } catch (error) {
+        
+        consola.error(this.name+" : "+error)
+        return false
+
+    }
+
    }
 
 }

@@ -14,16 +14,22 @@ export interface IPost_response {
 }
 
 export interface IPost {
+  
   UUID: string;
   UserUUID: string;
   createdDate: Date;
+
   //for aes
   isPublic:boolean
+  //for isPublic eq false 
   iv:string
   title: string[];
   content: string[];
-  Image: string[][];
+  //first for a image, second for share part
+  Image: string[];
+  //can be null
   tags: string[];
+
   objHash:string,
   objSign:string
 }
@@ -35,12 +41,12 @@ const PostSchema = new Schema<IPost>({
   createdDate: { type: Date, required:true, immutable: true },
   //for aes
   isPublic:{type: Boolean,required:true  },
-  iv:{type:String,required:true,default:""},
-  title: { type: [String], required: true, trim: true, maxlength: 255 },
-  content: { type: [String], required: true, maxlength: 5000 },
+  iv:{type:String,default:""},
+  title: { type: [String], required: true, trim: true },
+  content: { type: [String] },
   Image: {
-    type: [[String]],
-    default: [[]],
+    type: [String],
+    default: [],
   },
   tags: {
     type: [String],

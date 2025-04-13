@@ -7,13 +7,8 @@ import { generalTokenSchema } from "~/server/request_sheme/general/generalTokenS
 import { verifyJWT } from "~/server/token_validator/jwt"
 import { verifyToken } from "~/server/token_validator/paseto"
 import RequestEncryption from "~/shared/Request/requestEncrytion"
+import { IStory_resp } from "./IStory_resp"
 
-interface IStory_resp {
-    id : string|number;
-    username : string;
-    userImage : string;
-    image : string;   
-   }
 
 export default defineEventHandler(async (event)=>{
 
