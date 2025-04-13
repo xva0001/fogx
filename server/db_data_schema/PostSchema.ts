@@ -20,8 +20,8 @@ export interface IPost {
   //for aes
   isPublic:boolean
   iv:string
-  title: string;
-  content: string;
+  title: string[];
+  content: string[];
   Image: string[][];
   tags: string[];
   objHash:string,
@@ -36,8 +36,8 @@ const PostSchema = new Schema<IPost>({
   //for aes
   isPublic:{type: Boolean,required:true  },
   iv:{type:String,required:true,default:""},
-  title: { type: String, required: true, trim: true, maxlength: 255 },
-  content: { type: String, required: true, maxlength: 5000 },
+  title: { type: [String], required: true, trim: true, maxlength: 255 },
+  content: { type: [String], required: true, maxlength: 5000 },
   Image: {
     type: [[String]],
     default: [[]],

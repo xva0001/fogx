@@ -136,6 +136,29 @@ export async function getCorrectStory(
             transposedShares.push(shareGroup);
         }
 
+
+        // console.log("TEST : transosed");
+        
+        // const test = groupByIndex(imageShares).groups
+        
+        // const s1 = sha3_256(JSON.stringify(test)) == sha3_256(JSON.stringify(transposedShares))
+        // console.log(s1);
+        // try {
+        //     // @ts-expect-error
+        //     const { transpose } = await import("~/server/wasm/target/transposedMatrix.wasm")//server\wasm\target\transposedMatrix.wasm
+        //     console.log("hi ! wasm");
+            
+        //     const s2 = transpose(JSON.stringify(imageShares))
+        //     console.log("s2 hash :",sha3_256(s2))
+        //     console.log("org correct hash :",sha3_256(JSON.stringify(test)))
+        // } catch (error) {
+            
+        //     console.log("Error in new Method");
+        // }
+        
+        
+
+
         // 恢复每部分图像
         const reverse = transposedShares
         if (reverse.length!= shareLength ) {

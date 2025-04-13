@@ -66,7 +66,10 @@ export default defineNuxtConfig(
     nitro:{
       rollupConfig:{
         
-      }  
+      } ,
+      experimental:{
+        wasm: true
+      }
     },
     
 
@@ -85,6 +88,7 @@ export default defineNuxtConfig(
       }
     }
     ,
-    compatibilityDate: "2024-12-25"
+    compatibilityDate: "2024-12-25",
+    
   }
 )
