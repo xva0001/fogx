@@ -71,10 +71,15 @@ export async function getCorrectPost(
     const imageShares: string[][] = [];
     const allKeys = Object.keys(validPostsWithIndex[0].post) as (keyof IPost)[];
 
-    // 在字段循环外单独处理图像分片
+    // 收集图像分片和内容分片
+    const titleShares: string[][] = [];
+    const contentShares: string[][] = [];
+    
     validPostsWithIndex.forEach(({ post, originalIndex }) => {
         if (!problemIndices.includes(originalIndex)) {
-            imageShares.push(post.Image); // 收集图像分片
+            imageShares.push(post.Image);
+            titleShares.push(post.title);
+            contentShares.push(post.content);
         }
     });
 
@@ -154,35 +159,59 @@ export async function getCorrectPost(
         }
     }
 
-    // 使用互斥锁进行图像恢复
+    // 使用互斥锁进行恢复操作
     const release = await globalMutex.acquire();
     try {
-        if (imageShares.length < getThreshold()) {
-            throw new Error("Insufficient shares for image recovery");
+        if (imageShares.length < getThreshold() || 
+            titleShares.length < getThreshold() || 
+            contentShares.length < getThreshold()) {
+            throw new Error("Insufficient shares for recovery");
         }
 
-        // 转置图像分片数组以便恢复
-        const transposedShares: string[][] = [];
-        const shareLength = imageShares[0].length;
-        
-        for (let i = 0; i < shareLength; i++) {
+        // 恢复图像
+        const transposedImageShares: string[][] = [];
+        const imageShareLength = imageShares[0].length;
+        for (let i = 0; i < imageShareLength; i++) {
             const shareGroup: string[] = [];
             for (const share of imageShares) {
                 shareGroup.push(share[i]);
             }
-            transposedShares.push(shareGroup);
+            transposedImageShares.push(shareGroup);
         }
-
-        // 恢复每部分图像
-        const restoredImages = await ShamirImageTool.combineShares(transposedShares);
-        
-        // 处理图像数组
+        const restoredImages = await ShamirImageTool.combineShares(transposedImageShares);
         const restoredImageArray = JSON.parse(restoredImages);
         if (!Array.isArray(restoredImageArray)) {
             throw new Error("Restored image data is not an array");
         }
 
+        // 恢复标题
+        const transposedTitleShares: string[][] = [];
+        const titleShareLength = titleShares[0].length;
+        for (let i = 0; i < titleShareLength; i++) {
+            const shareGroup: string[] = [];
+            for (const share of titleShares) {
+                shareGroup.push(share[i]);
+            }
+            transposedTitleShares.push(shareGroup);
+        }
+        const restoredTitle = await ShaimirStringSplitTool.combineShares(transposedTitleShares);
+
+        // 恢复内容
+        const transposedContentShares: string[][] = [];
+        const contentShareLength = contentShares[0].length;
+        for (let i = 0; i < contentShareLength; i++) {
+            const shareGroup: string[] = [];
+            for (const share of contentShares) {
+                shareGroup.push(share[i]);
+            }
+            transposedContentShares.push(shareGroup);
+        }
+        const restoredContent = await ShaimirStringSplitTool.combineShares(transposedContentShares);
+
+        // 更新结果
         result.Image = restoredImageArray;
+        result.title = [restoredTitle];
+        result.content = [restoredContent];
         result.objHash = "";
         result.objSign = "";
 

@@ -34,11 +34,11 @@ export const findPublicStory = async (dbConnector: MongoDBConnector, numLimit = 
 
         //check story        
 
-        // let verify = verifyPacket.verifyStory(story)
-        // if (verify===false) {
-        //     //
-        //     continue
-        // }
+        let verify = verifyPacket.verifyStory(story)
+        if (verify===false) {
+            //
+            continue
+        }
 
         grouped[uuid].push(story)
     }
