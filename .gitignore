@@ -34,3 +34,6 @@ script/
 
 #test
 test
+#vsc 
+.vs/
+.vscode/
