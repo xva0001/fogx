@@ -57,9 +57,6 @@ export async function createSignedPostPacket(
         arr_loopOfAttributeRRes[arrKey[index]] = (reverseAns)
     }
 
-
-
-
     if (arr_loopOfAttributeRRes.title == null || arr_loopOfAttributeRRes.content == null) {
         throw new Error("Unrunable, unRearch code")
     }

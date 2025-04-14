@@ -68,7 +68,6 @@ export const createPostHandler = async (event: H3Event) => {
 
     try {
         await dbConnector.dbConnsOpen(dbNames)
-
         // Check for UUID conflict
         let countSameUUIDPost = await findPostByID(dbConnector, uuid)
         if (countSameUUIDPost.counter != 0) {
@@ -89,6 +88,10 @@ export const createPostHandler = async (event: H3Event) => {
 
         let insertResult = await insertPost(dbConnector, newPost)
 
+        if (insertResult["success"] === false) {
+            throw new Error("Insert Problem (db)")
+        }
+
         // Get user info for response
         let userInfo
         try {
@@ -96,6 +99,7 @@ export const createPostHandler = async (event: H3Event) => {
         } catch (error) {
             console.error("Error getting user info:", error)
         }
+
 
         const response = {
             id: uuid,
