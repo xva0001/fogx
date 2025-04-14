@@ -228,8 +228,13 @@
     </div>
 
     <!-- Modals -->
-    <StoryViewer v-if="selectedStoryIndex !== null" :is-open="selectedStoryIndex !== null" :stories="stories"
-      :initial-index="selectedStoryIndex" @close="closeStory" />
+    <StoryViewer v-if="selectedStoryIndex !== null" 
+      :is-open="selectedStoryIndex !== null" 
+      :stories="stories"
+      :initial-index="selectedStoryIndex" 
+      :current-username="user.username"
+      @close="closeStory" 
+      @delete="deleteStory" />
 
     <CreateModal v-if="showCreateStory" :is-open="showCreateStory" type="story" @close="showCreateStory = false"
       @submit="handleStorySubmit" />
@@ -791,25 +796,36 @@ async function fetchEncrypted<T = any>(
 
 
     // 7. 解密回應
-    const decryptedJsonString = await RequestEncryption.decryptMessage(response_enc.encryptedMessage, shared, response_enc.iv);
-    console.log('Decrypted JSON string:', decryptedJsonString);
-
-
-
-    // 8. 解析 JSON
-    const decryptedResponse = JSON.parse(decryptedJsonString);
-    console.log('Parsed decrypted response:', decryptedResponse);
-
-
-    // 9. 檢查業務成功標誌 (假設後端總是在解密後的數據中包含 success)
-    if (decryptedResponse && decryptedResponse.success === false) {
-      console.error('Server indicated failure:', decryptedResponse.message);
-      throw new Error(decryptedResponse.message || 'Server returned an error.');
+    const decryptedResponse = await RequestEncryption.decryptMessage(response_enc.encryptedMessage, shared, response_enc.iv);
+    console.log('Decrypted response:', decryptedResponse);
+    
+    let result;
+    try {
+      result = JSON.parse(decryptedResponse);
+    } catch (parseError) {
+      console.error('Failed to parse server response:', parseError);
+      console.error('Raw response:', decryptedResponse);
+      throw new Error('Invalid server response format');
+    }
+    
+    if (!result.success && result.message) {
+      console.error('Server reported failure:', result);
+      throw new Error(result.message || 'Failed to create post');
+    }
+    
+    // Handle the case where success is undefined but we have ID
+    if (result.id) {
+      console.log('Post created successfully with ID:', result.id);
+      // Success case - continue with refresh
+    } else if (result.success === undefined) {
+      // If success is undefined and we don't have an ID, treat as error
+      console.error('Unknown server response format:', result);
+      throw new Error('Invalid server response format - success flag and ID missing');
     }
 
 
-    // 10. 返回解密後的業務數據 (可能是整個對象，或其中的 data 屬性，取決於後端)
-    return decryptedResponse as T;
+    // 9. 返回解密後的業務數據 (可能是整個對象，或其中的 data 屬性，取決於後端)
+    return result as T;
 
   } catch (error: any) {
     console.error(`Encrypted fetch to ${url} failed:`, error);
@@ -1044,7 +1060,7 @@ const fetchPosts = async (pageNumber: number) => {
 
   try {
     const response = await fetchEncrypted<{ posts: UserPost[], hasMorePages: boolean }>(
-      `/api/posts?page=${pageNumber}`,
+      `/api/post?page=${pageNumber}`,
       { method: 'GET' } // GET 請求通常沒有 payload
     );
 
@@ -1118,7 +1134,7 @@ const handleStorySubmit = async (storyInputData: any) => {
     let encrypt: any = await RequestEncryption.encryptMessage(JSON.stringify(storyInputData), shared)
     encrypt["pubkey"] = pair.getPublic("hex")
 
-    const req = await $fetch('/api/stories/add', { // 假設端點是 /api/stories
+    const req = await $fetch('/api/stories/add', { 
       method: 'POST',
       body: JSON.stringify(encrypt),
     }).then((res: any) => RequestEncryption.decryptMessage(res.encryptedMessage, shared, res.iv));
@@ -1155,64 +1171,156 @@ const handleStorySubmit = async (storyInputData: any) => {
   }
 };
 
-const handlePostSubmit = async (formData: FormData) => {
-  isLoading.value = true; // 可以添加一個特定的加載狀態
+const handlePostSubmit = async (postSubmissionData: any) => {
+  
+  isLoading.value = true;
+  
   error.value = null;
-  console.log('Submitting post...');
+
+  console.log('Submitting post...', postSubmissionData);
+  
+  const jwt = sessionStorage.getItem('jwt');
+  const paseto = sessionStorage.getItem('paseto');
+  if (!jwt || !paseto) {
+    console.error('Authentication tokens not found');
+    navigateTo('/login');
+    return;
+  }  
   try {
-    // FormData 不能直接 JSON.stringify 加密，需要後端支持 multipart/form-data
-    // 如果後端只接受 JSON，需要先上傳文件獲取 URL，再將 URL 和其他文本數據加密發送
-    // **假設後端 /api/posts 能處理 multipart/form-data 且不需要加密文件本身**
-    // **如果後端要求加密所有內容，文件上傳會變得非常複雜**
-    // **這裡暫時假設文件直傳，文本內容不加密 (或需要單獨的加密端點)**
-
-    // **方案 A: 文件直傳 (不加密)**
-    // const newPost = await $fetch<UserPost>('/api/posts', {
-    //   method: 'POST',
-    //   headers: { ...getAuthHeaders() }, // 只加認證
-    //   body: formData,
-    // });
-
-    // **方案 B: 假設需要加密文本，文件另外處理 (非常規)**
-    // 1. 上傳文件到 /api/upload (假設) -> 獲取 imageURLs
-    // 2. 加密 { title, content, tags, imageURLs }
-    // const payload = { title: formData.get('title'), content: formData.get('content'), /* ... */ };
-    // const newPost = await fetchEncrypted<UserPost>('/api/posts/encrypted', { // 假設有加密端點
-    //     method: 'POST'
-    // }, payload);
-
-    // **暫時恢復為不加密的 $fetch，因為加密 FormData 很複雜**
-    // **你需要根據後端實際情況決定如何處理文件上傳和加密**
-
-
-    // Here you would typically make an API call to save the post
-    //console.log('Submitting post:', formData);
-
-    // Mock post creation
-    const newPost = await $fetch<UserPost>('/api/posts', {
-      method: 'POST',
-      headers: {
-        ...getAuthHeaders(), // 添加認證標頭
-        // 'Content-Type': 'multipart/form-data' // 通常 $fetch 會自動處理
-      },
-      body: formData, // 直接傳遞 FormData
-    });
-
-    if (newPost) {
-      newPost.date = new Date(newPost.date); // 轉換日期
-      newPost.comments = newPost.comments?.map(c => ({ ...c, date: new Date(c.date) })) || [];
-      displayedPosts.value.unshift(newPost);
-      showCreatePost.value = false; // 關閉模態框
-      console.log('Post created successfully:', newPost);
+    // 获取服务器公钥
+    const servPubKeyData = await $fetch("/api/ECDHpubkey");    
+    if (!servPubKeyData || !servPubKeyData.pubkey) {
+      console.log("Failed to get server public key.");
+      
+      throw new Error("Failed to get server public key.");
     }
-    // request to save the post to the server
-    // TODO:　request to save the post to the server
+    
+    // 生成密钥对和共享密钥
+    const pair = genKeyCurve25519();
+    const clientPubKey = pair.getPublic("hex");
+    const shared = calSharedKey(servPubKeyData.pubkey, pair.getPrivate("hex"));
+    console.log("hi");
+    
+    // 提取图像数据
+    let imageData = null;
+    if (postSubmissionData.image) {
+      imageData = typeof postSubmissionData.image === 'string' 
+        ? postSubmissionData.image 
+        : (postSubmissionData.image.base64 || null);
+      console.log(`Image data found: ${imageData ? 'Yes' : 'No'}`);
+      console.log(`Image data length: ${imageData ? imageData.length : 0}`);
+      
+      // Sanitize the image data
+      if (imageData) {
+        console.log("image data : ",imageData);
+        
+        imageData = sanitizeImageData(imageData);
+        console.log('Image data sanitized');
+      }
+    }
+    
+    // 验证标题和内容长度
+    if (!postSubmissionData.title || postSubmissionData.title.length < 4 || postSubmissionData.title.length > 40) {
+      throw new Error("Title must be between 4 and 40 characters");
+    }
+    
+    if (!postSubmissionData.content || postSubmissionData.content.length < 4 || postSubmissionData.content.length > 1000) {
+      throw new Error("Content must be between 4 and 1000 characters");
+    }
+    
+    // 准备帖子数据
+    const postData = {
+      jwt: jwt,
+      paseto: paseto,
+      isPublic: true,
+      title: postSubmissionData.title,
+      content: postSubmissionData.content,
+      Image: imageData ? [imageData] : [],
+      tags: postSubmissionData.tags || [],
+      requestTime: new Date().toISOString()
+    };
+    
+    console.log('Prepared post data:', {
+      ...postData,
+      jwt: '***REDACTED***',
+      paseto: '***REDACTED***',
+      Image: postData.Image.length > 0 ? [`Image data length: ${postData.Image[0].length}`] : []
+    });
+    
+    // 加密数据
+    let encrypt: any = await RequestEncryption.encryptMessage(JSON.stringify(postData), shared);
+    encrypt["pubkey"] = clientPubKey;
+  
+    // 发送到服务器
+    const response = await $fetch<EncryptedRes>('/api/post/createPost', {
+      method: 'POST',
+      body: JSON.stringify(encrypt)
+    });
+    
+    console.log('Received server response:', response);
+    
+    if (!response || !response.encryptedMessage || !response.iv) {
+      throw new Error('Invalid server response');
+    }
+    
+    // 解密响应
+    const decryptedResponse = await RequestEncryption.decryptMessage(
+      response.encryptedMessage,
+      shared,
+      response.iv
+    );
+    
+    console.log('Decrypted response:', decryptedResponse);
+    
+    let result;
+    try {
+      result = JSON.parse(decryptedResponse);
+    } catch (parseError) {
+      console.error('Failed to parse server response:', parseError);
+      console.error('Raw response:', decryptedResponse);
+      throw new Error('Invalid server response format');
+    }
+    
+    if (!result.success && result.message) {
+      console.error('Server reported failure:', result);
+      throw new Error(result.message || 'Failed to create post');
+    }
+    
+    // Handle the case where success is undefined but we have ID
+    if (result.id) {
+      console.log('Post created successfully with ID:', result.id);
+      // Success case - continue with refresh
+    } else if (result.success === undefined) {
+      // If success is undefined and we don't have an ID, treat as error
+      console.error('Unknown server response format:', result);
+      throw new Error('Invalid server response format - success flag and ID missing');
+    }
+    
+    // 成功创建帖子后刷新帖子列表
+    //await fetchPosts(1);
+    showCreatePost.value = false;
+    alert('Post created successfully!');
 
+    
   } catch (err: any) {
     console.error('Error creating post:', err);
-    // 可以在模態框內顯示錯誤，或使用全局錯誤提示
-    alert(`Failed to create post: ${err.data?.message || 'Unknown error'}`);
-    error.value = err.data?.message || 'Failed to create post.';
+    // Add more detailed error logging
+    if (err.data) {
+      console.error('Error data:', err.data);
+    }
+    if (err.message) {
+      console.error('Error message:', err.message);
+    }
+    if (err.stack) {
+      console.error('Error stack:', err.stack);
+    }
+    
+    const errorMessage = err.data && err.data.message 
+      ? err.data.message 
+      : (err.message || 'Unknown error');
+    
+    alert(`Failed to create post: ${errorMessage}`);
+    error.value = errorMessage;
   } finally {
     isLoading.value = false;
   }
@@ -1222,6 +1330,179 @@ const handlePostSubmit = async (formData: FormData) => {
 // Add share function
 const sharePost = (post: UserPost) => { shareModalPost.value = post; };
 
+// 删除故事函数
+const deleteStory = async (storyId: string | number) => {
+  isLoading.value = true;
+  error.value = null;
+  
+  console.log('Starting story deletion, ID:', storyId);
+  
+  try {
+    const jwt = sessionStorage.getItem('jwt');
+    const paseto = sessionStorage.getItem('paseto');
+
+    if (!jwt || !paseto) {
+      console.error('Authentication tokens not found');
+      navigateTo('/login');
+      return;
+    }
+
+    // Removed redundant confirmation dialog since it's already handled in StoryViewer component
+    
+    console.log('Processing story deletion...');
+
+    try {
+      // 获取服务器公钥
+      const servPubKeyData = await $fetch<{ pubkey: string }>("/api/ECDHpubkey");
+      if (!servPubKeyData || !servPubKeyData.pubkey) {
+        throw new Error("Failed to get server public key.");
+      }
+      console.log('Successfully retrieved server public key');
+
+      // 生成密钥对并计算共享密钥
+      const pair = genKeyCurve25519();
+      const clientPubKey = pair.getPublic("hex");
+      const shared = calSharedKey(servPubKeyData.pubkey, pair.getPrivate("hex"));
+      console.log('Key generation completed');
+
+      // 准备删除请求数据
+      const deleteData = {
+        jwt: jwt,
+        paseto: paseto,
+        storyUUID: storyId
+      };
+      console.log('Prepared deletion data:', deleteData);
+
+      // 定义加密响应类型
+      interface EncryptedResponse {
+        encryptedMessage?: string;
+        iv?: string;
+        success?: boolean;
+        message?: string;
+        [key: string]: any;
+      }
+
+      // 加密数据
+      let encrypt: any = await RequestEncryption.encryptMessage(JSON.stringify(deleteData), shared);
+      encrypt["pubkey"] = clientPubKey;
+      console.log('数据加密完成');
+
+      // 发送删除请求
+      console.log('发送删除请求...');
+      const response = await $fetch<EncryptedResponse>('/api/stories/userRemove', {
+        method: 'POST',
+        body: JSON.stringify(encrypt)
+      });
+      console.log('收到服务器响应:', response);
+
+      // 检查响应
+      if (!response) {
+        throw new Error('Server returned an empty response');
+      }
+
+      let result;
+      if (response.encryptedMessage && response.iv) {
+        // 如果响应是加密的，进行解密
+        console.log('Decrypting server response...');
+        try {
+          const decryptedData = await RequestEncryption.decryptMessage(
+            response.encryptedMessage, 
+            shared, 
+            response.iv
+          );
+          result = JSON.parse(decryptedData);
+          console.log('Decryption result:', result);
+        } catch (decryptErr: any) {
+          console.error('Decryption failed:', decryptErr);
+          throw new Error(`Failed to decrypt response: ${decryptErr.message || 'Unknown decryption error'}`);
+        }
+      } else {
+        // 如果响应不是加密的，直接使用
+        result = response;
+        console.log('Using unencrypted response:', result);
+      }
+
+      // 处理响应结果
+      if (result && result.success) {
+        console.log('Deletion successful, removing story from local list');
+        // 从本地数组中移除已删除的故事
+        const index = stories.value.findIndex(s => s.id === storyId);
+        if (index !== -1) {
+          stories.value.splice(index, 1);
+        } else {
+          console.warn('Could not find story to delete locally:', storyId);
+        }
+        
+        // 关闭故事查看器
+        closeStory();
+        
+        alert('Story successfully deleted');
+      } else {
+        throw new Error(result?.message || 'Failed to delete story, server did not return success status');
+      }
+    } catch (reqError) {
+      console.error('Request processing error:', reqError);
+      throw reqError;
+    }
+  } catch (err: any) {
+    console.error('Error deleting story:', err);
+    alert(`Failed to delete story: ${err.message || 'Unknown error'}`);
+    error.value = err.message || 'Failed to delete story';
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+// Add the detectImageType function at the end of the script section
+const detectImageType = (base64String: string): string | null => {
+  try {
+    // Remove the prefix if it exists to check only the actual base64 data
+    const cleanedBase64 = base64String.replace(/^data:image\/\w+;base64,/, '');
+    
+    // Decode the first few bytes of the base64 string
+    const byteString = atob(cleanedBase64.substring(0, 100));
+    
+    // Convert the decoded byte string to an array of integers
+    const bytes = new Uint8Array(byteString.length);
+    for (let i = 0; i < byteString.length; i++) {
+      bytes[i] = byteString.charCodeAt(i);
+    }
+    
+    // Check the first few bytes to identify the image type
+    if (bytes[0] === 0xFF && bytes[1] === 0xD8 && bytes[2] === 0xFF) {
+      return 'jpeg';
+    } else if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47) {
+      return 'png';
+    } else if (bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46) {
+      return 'gif';
+    } else if ((bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46) &&
+               (bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50)) {
+      return 'webp';
+    }
+    
+    // Default to JPEG if can't be determined
+    return 'jpeg';
+  } catch (e) {
+    console.error('Error detecting image type:', e);
+    return null;
+  }
+};
+
+// Add this function near the detectImageType function
+const sanitizeImageData = (imageData: string): string => {
+  if (!imageData) return '';
+  
+  // Make sure it has the proper data URL prefix
+  if (!imageData.startsWith('data:image/')) {
+    // Try to detect the image type
+    const imageType = detectImageType(imageData) || 'jpeg';
+    // Add the proper prefix
+    return `data:image/${imageType};base64,${imageData.replace(/^data:image\/\w+;base64,/, '')}`;
+  }
+  
+  // It already has the prefix, just return it
+  return imageData;
+};
 
 </script>
 
