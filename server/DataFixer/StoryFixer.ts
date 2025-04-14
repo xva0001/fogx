@@ -5,6 +5,7 @@ import { Mutex } from "async-mutex";
 import pkg from "js-sha3";
 import { groupByIndex } from "../utils/ArrayGroupByIndex";
 import ShamirImageTool from "../utils/imageDistrubutionTool";
+import { IPost } from "../db_data_schema/PostSchema";
 
 const { sha3_256 } = pkg
 // 全局互斥锁保证图像恢复的原子性
@@ -200,7 +201,7 @@ function convertType(value: string, sample: any): any {
         }
         return num;
     }
-
+    
     if (typeof sample === "boolean") {
         return value === "true";
     }
