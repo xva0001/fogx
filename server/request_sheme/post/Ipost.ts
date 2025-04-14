@@ -1,5 +1,4 @@
-import  {z} from 'zod'
-
+import { z } from 'zod'
 interface Ipost {
     jwt: string,
     paseto: string,
@@ -24,3 +23,9 @@ export const IpostSchemaVaildatorRequestObj = z.object(
         requestTime: z.string().datetime({offset:true})
     }
 )
+
+export const IPostDeleteRequest = z.object({
+    jwt: z.string(),
+    paseto: z.string(),
+    postUUID: z.string()
+})
