@@ -29,3 +29,16 @@ export const IPostDeleteRequest = z.object({
     paseto: z.string(),
     postUUID: z.string()
 })
+
+export const IPostUpdateRequest = z.object({
+    jwt: z.string(),
+    paseto: z.string(),
+    postUUID: z.string(),
+    isPublic: z.boolean(),
+    iv: z.string().optional(),
+    title: z.string().min(4).max(40),
+    content: z.string().min(4).max(1000),
+    Image: z.array(z.string()).optional(),
+    tags: z.array(z.string()).optional(),
+    requestTime: z.string().datetime({offset: true})
+})

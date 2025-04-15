@@ -1,6 +1,6 @@
 import { MongoDBConnector } from "#imports";
 import { secrets } from "easy-shamir-secret-sharing";
-import { IUser, userSchema } from "../db_data_schema/UserSchema";
+import { IUser, userSchema } from "~/server/db_data_schema/UserSchema";
 import { Mutex } from 'async-mutex';
 const userUpdateMutexes = new Map<string, Mutex>();
 export async function updateUser(dbConnector: MongoDBConnector, correctUser: IUser, reconstructedKey: string, lastestLoginDate?: Date,): Promise<boolean> {

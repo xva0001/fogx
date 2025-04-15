@@ -9,6 +9,11 @@ export async function findPostByID(dbConnector: MongoDBConnector, uuid: string) 
     await Promise.all(connections.map(async (conn, index) => {
         let dbContent = await conn.model("post", PostSchema).findOne({UUID: uuid}).lean();
         if (dbContent) {
+
+            if (!verifyPacket.verifyPost(dbContent)) {
+                contents[index] = undefined;
+                return;            
+            }
             contents[index] = dbContent;
         } else {
             contents[index] = undefined;
@@ -22,6 +27,5 @@ export async function findPostByID(dbConnector: MongoDBConnector, uuid: string) 
             counter++;
         }
     }
-
     return {contents, counter};
 }
