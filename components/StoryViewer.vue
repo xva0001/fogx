@@ -33,6 +33,13 @@
                :alt="currentStory.username">
         </div>
         <span class="text-white font-medium">{{ currentStory.username }}</span>
+        <button 
+          v-if="currentStory.username === props.currentUsername"
+          @click="emit('delete', currentStory.id)"
+          class="ml-2 px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded-full text-sm"
+        >
+          Delete
+        </button>
       </div>
     </div>
   </div>
@@ -49,10 +56,14 @@ const props = defineProps({
   initialIndex: {
     type: Number,
     default: 0
+  },
+  currentUsername: {
+    type: String,
+    required: true
   }
 });
 
-const emit = defineEmits(['close']);
+const emit = defineEmits(['close', 'delete']);
 
 const currentIndex = ref(props.initialIndex);
 
