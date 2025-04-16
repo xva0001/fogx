@@ -104,14 +104,21 @@
             <div class="p-4">
               <!-- Post Header -->
               <div class="flex items-center space-x-3">
-                <div class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
-                  <span class="text-white font-bold">{{ post.icon }}</span>
+                <div class="w-10 h-10 bg-gray-300 dark:bg-gray-600 rounded-full flex items-center justify-center overflow-hidden">
+                  <img v-if="post.icon && post.icon.startsWith('data:image')"
+                      :src="post.icon"
+                      :alt="`${post.username}'s avatar`"
+                      class="w-full h-full object-cover">
+                  <span v-else class="text-gray-500 dark:text-gray-400 font-bold">
+                    {{ post.username ? post.username.charAt(0).toUpperCase() : '?' }}
+                  </span>
                 </div>
                 <div>
                   <div class="font-semibold">{{ post.username }}</div>
-                  <div class="text-sm text-gray-500">{{ formatTimeAgo(new Date(post.date)) }}</div>
+                  <div class="text-sm text-gray-500 dark:text-gray-400">{{ formatTimeAgo(post.date) }}</div>
                 </div>
               </div>
+
 
               <!-- Post Content -->
               <h1 class="text-xl font-bold mb-4">{{ post.title }}</h1>
@@ -170,8 +177,8 @@
                 <div class="space-y-4">
                   <div v-for="comment in post.comments" :key="comment.id" class="relative">
                     <div v-if="!comment.isEditing">
-                      <Comment :icon="comment.icon" :username="comment.username" :user-i-d="comment.userID"
-                        :date="new Date(comment.date)" :content="comment.content" />
+                      <Comment :icon="comment.icon" :username="comment.username" :userID="comment.userID"
+                      :date="new Date(comment.date)" :content="comment.content" />
                       <!-- Comment Actions -->
                       <div v-if="comment.userID === currentUser.userID" class="absolute top-4 right-4 flex space-x-2">
                         <button @click="startEdit(comment)"
@@ -253,6 +260,10 @@ import Comment from '~/components/Comment.vue';
 import StoryViewer from '~/components/StoryViewer.vue';
 import CreateModal from '~/components/CreateModal.vue';
 import ShareModal from '~/components/ShareModal.vue';
+
+import ImageBox from '~/components/ImageBox.vue'; // Import ImageBox
+import Sidebar from '~/components/Sidebar.vue'; // Import Sidebar
+import DarkModeBtn from '~/components/DarkModeBtn.vue'; // Import DarkModeBtn
 import {
   Home,
   Search,
@@ -338,15 +349,6 @@ const bottomItems = computed<MenuItem[]>(() => [
   }
 ])
 
-// User data
-const user = ref({
-  icon: '',
-  username: '',
-  email: '',
-  twoFactorEnabled: true
-});
-
-
 const handleNavigate = (item: MenuItem) => {
   if (item.key === 'logout') {
     // Handle logout
@@ -371,59 +373,39 @@ const toggleTheme = () => {
 }
 // Fetch user data
 const fetchUserData = async () => {
+  let shared: string | undefined;
   try {
     const jwt = sessionStorage.getItem('jwt');
     const paseto = sessionStorage.getItem('paseto');
+    const CUUID = sessionStorage.getItem('CUUID');
+    if (!jwt || !paseto || !CUUID) throw new Error("Missing auth tokens or CUUID.");
 
-    if (!jwt || !paseto) {
-      console.error('Authentication tokens not found');
-      navigateTo('/login');
-      return;
-    }
-    let packet = {
-      jwt: jwt,
-      paseto: paseto
-    }
-    let servPubKey = await $fetch("/api/ECDHpubkey")
-    //gen key
-    let pair = genKeyCurve25519()
-    //calculate shared key
-    let shared = calSharedKey(servPubKey.pubkey, pair.getPrivate("hex"))
+    const packet = { jwt, paseto, CUUID };
+    const servPubKeyData = await $fetch<{ pubkey: string }>("/api/ECDHpubkey");
+    if (!servPubKeyData || !servPubKeyData.pubkey) throw new Error("Failed to get server public key.");
+    const pair = genKeyCurve25519();
+    shared = calSharedKey(servPubKeyData.pubkey, pair.getPrivate("hex"));
+    const encryptedCoreData = await RequestEncryption.encryptMessage(JSON.stringify(packet), shared);
+    const requestBody: EncryptReq = { iv: encryptedCoreData.iv, encryptedMessage: encryptedCoreData.encryptedMessage, pubkey: pair.getPublic("hex") };
 
-    //        console.log(shared);
+    const response_enc = await $fetch<EncryptedRes>('/api/user/profileget', {
+      method: "POST", headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }, body: JSON.stringify(requestBody)
+    });
 
-    let encrypt: any = await RequestEncryption.encryptMessage(JSON.stringify(packet), shared)
+    if (!response_enc || !response_enc.encryptedMessage || !response_enc.iv) throw new Error("Invalid response structure from profileget");
+    const decryptedJsonString = await RequestEncryption.decryptMessage(response_enc.encryptedMessage, shared, response_enc.iv);
+    const response = JSON.parse(decryptedJsonString);
 
-    encrypt["pubkey"] = pair.getPublic("hex")
-
-    //console.log(encrypt);
-
-
-    let response: any = await $fetch('/api/user/profileget', {
-      method: "POST",
-      body: JSON.stringify(encrypt)
-    }).then((res: any) => RequestEncryption.decryptMessage(res.encryptedMessage, shared, res.iv));
-    // console.log(response);
-    // console.log(typeof response);
-    response = JSON.parse(response)
-    //response = 
     if (response.success && response.user) {
-      //console.log(response);
-      console.log(response);
-      if (response.user.icon == null) {
-        //response.user.username
-        response.user.icon = new Identicon(sha3_256(response.user.username), 100).toString()
-        //data:image/png;base64,
-
+      if (!response.user.icon) {
+        response.user.icon = "data:image/png;base64," + new Identicon(sha3_256(response.user.username || CUUID), 128).toString();
+      } else if (!response.user.icon.startsWith('data:image')) {
+         response.user.icon = "data:image/png;base64," + response.user.icon;
       }
-      response.user.icon = "data:image/png;base64," + response.user.icon
-      //Object.assign(user.value, response.user);
       Object.assign(user.value, response.user);
-
-
-      // Also fetch other data, such as recent login sessions
-    } else {
-      console.error('Failed to fetch user data');
+      console.log("User data fetched:", user.value);
+    } else { 
+      throw new Error(response?.message || 'Failed to fetch user data'); 
     }
   } catch (error: any) {
     console.error('Error fetching user data:', error);
@@ -493,9 +475,6 @@ const currentUser = ref({
   userID: 'myuser123'
 });
 
-// Add a reactive timestamp to force updates
-const currentTimestamp = ref(Date.now());
-
 // Initial posts data with proper date objects
 const initialPosts: UserPost[] = [
   {
@@ -539,13 +518,20 @@ const initialPosts: UserPost[] = [
 ];
 
 // Infinite scroll related refs
-const infiniteScrollTrigger = ref<HTMLElement | null>(null);
+const user = ref({ icon: '', username: 'User', email: '', twoFactorEnabled: true }); // Default username
+const displayedPosts = ref<UserPost[]>([]); // Start empty, load from API
 const isLoading = ref(false);
-const page = ref(1); // 從第一頁開始加載
-const hasMore = ref(true); // 假設一開始有更多數據
-const displayedPosts = ref(initialPosts); // Initialize with initial posts
-//const displayedPosts = ref<UserPost[]>([]);
+const page = ref(1);
+const hasMore = ref(true);
 const error = ref<string | null>(null);
+const infiniteScrollTrigger = ref<HTMLElement | null>(null);
+const postPlaceholder = ref("What's on your mind?");
+const selectedStoryIndex = ref<number | null>(null);
+const newPostContent = ref('');
+const showCreateStory = ref(false);
+const showCreatePost = ref(false);
+const shareModalPost = ref<UserPost | null>(null);
+const currentTimestamp = ref(Date.now());
 
 // Add stories data
 const stories = ref<IStory[]>([
@@ -638,18 +624,6 @@ const fetchStory =  async () => {
 
 }
 
-// Add placeholder text state
-const postPlaceholder = ref("What's on your mind?");
-
-// Add new refs
-const selectedStoryIndex = ref<number | null>(null);
-const newPostContent = ref('');
-const showCreateStory = ref(false);
-const showCreatePost = ref(false);
-
-// Add new ref for share modal
-const shareModalPost = ref<UserPost | null>(null);
-
 // Function to handle create post
 const openCreatePost = () => {
   showCreatePost.value = true;
@@ -658,33 +632,65 @@ const openCreatePost = () => {
 // Toggle like on a post
 const toggleLike = async (post: UserPost) => {
   const originalLiked = post.isLiked;
-  // 確保 likes 是數字，如果 undefined 則視為 0
   const originalLikes = post.likes ?? 0;
 
-  // 更新 UI
   post.isLiked = !post.isLiked;
   post.likes = originalLikes + (post.isLiked ? 1 : -1);
 
+  let shared: string | undefined;
+
+  console.log("Toggling like for post:", post.id, typeof post.id); // 確認 post.id 有效
+  const apiUrl = `/api/post/${post.id}/like`; // 確認 apiUrl 正確
+  console.log("Calling like API:", apiUrl);
   try {
-    // 使用 fetchEncrypted，POST 通常沒有 payload，但後端可能需要空的加密體？
-    // 假設後端不需要加密體，或者 fetchEncrypted 能處理無 payload 的 POST    
-    const response = await fetchEncrypted<{ likes: number; isLiked: boolean }>(
-      `/api/posts/${post.id}/like`,
-      { method: 'POST' }
-      // 如果後端需要空加密體: , {}
-    );
+    const jwt = sessionStorage.getItem('jwt');
+    const paseto = sessionStorage.getItem('paseto');
+    const CUUID = sessionStorage.getItem('CUUID'); // 獲取 CUUID
+    if (!jwt || !paseto || !CUUID) throw new Error("Missing auth tokens or CUUID.");
 
-    // 使用伺服器返回的最終狀態更新 (可選，如果樂觀更新足夠)
-    post.likes = response.likes;
-    post.isLiked = response.isLiked;
-    console.log(`Post ${post.id} like status updated by server.`);
+    // --- 手動加密流程 ---
+    const servPubKeyData = await $fetch<{ pubkey: string }>("/api/ECDHpubkey");
+    if (!servPubKeyData || !servPubKeyData.pubkey) throw new Error("Failed to get server public key.");
+    const pair = genKeyCurve25519();
+    shared = calSharedKey(servPubKeyData.pubkey, pair.getPrivate("hex"));
+    // Payload 可能只需要 token，後端根據 post.id 和用戶 CUUID 判斷
+    const payload = { jwt, paseto, CUUID };
+    const encryptedCoreData = await RequestEncryption.encryptMessage(JSON.stringify(payload), shared);
+    const requestBody: EncryptReq = {
+      iv: encryptedCoreData.iv,
+      encryptedMessage: encryptedCoreData.encryptedMessage,
+      pubkey: pair.getPublic("hex")
+    };
+    // --- 加密流程結束 ---
 
+    // **假設點讚 API 是 /api/post/{postId}/like (注意是 post 不是 posts)**
+    const response_enc = await $fetch<EncryptedRes>(`/api/post/${post.id}/like`, { // <--- 確認 API 路徑
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+      body: JSON.stringify(requestBody)
+    });
+    console.log("Like Fetch Options:", response_enc); // <--- 添加日誌打印選項
+
+    if (!response_enc || !response_enc.encryptedMessage || !response_enc.iv) throw new Error("Invalid response from like API.");
+    const decryptedJsonString = await RequestEncryption.decryptMessage(response_enc.encryptedMessage, shared, response_enc.iv);
+    const response = JSON.parse(decryptedJsonString) as { success: boolean; likes?: number; isLiked?: boolean; message?: string }; // 期望的回應結構
+    //response_enc = await $fetch<EncryptedRes>(apiUrl, fetchOptions);
+    
+    if (response && response.success) {
+        // 使用伺服器返回的最終狀態更新
+        post.likes = response.likes ?? post.likes; // 如果後端返回了新的 likes 數
+        post.isLiked = response.isLiked ?? post.isLiked; // 如果後端返回了新的 isLiked 狀態
+        console.log(`Post ${post.id} like status updated by server.`);
+    } else {
+        throw new Error(response?.message || 'Failed to update like status');
+    }
   } catch (err: any) {
     console.error(`Error toggling like for post ${post.id}:`, err);
     // 出錯時恢復原狀
     post.isLiked = originalLiked;
     post.likes = originalLikes;
-    alert(`Failed to update like status: ${err.data?.message || 'Unknown error'}`);
+    const message = err.data?.message || err.message || 'Unknown error';
+    alert(`Failed to update like status: ${message}`);
   }
 };
 
@@ -854,48 +860,141 @@ const updateComment = async (post: UserPost, comment: Comment) => {
   }
 
   const originalContent = comment.content;
-  comment.content = newContent; // 更新 UI
+  // 樂觀更新 UI
+  comment.content = newContent;
   comment.isEditing = false;
 
+  let shared: string | undefined;
   try {
-    // 使用 fetchEncrypted，將新內容作為 payload 加密
-    await fetchEncrypted(
-      `/api/posts/${post.id}/comments/${comment.id}`,
-      { method: 'PUT' }, // 或 PATCH
-      { content: newContent } // 要加密的數據
-    );
-    comment.editContent = '';
+    const jwt = sessionStorage.getItem('jwt');
+    const paseto = sessionStorage.getItem('paseto');
+    const CUUID = sessionStorage.getItem('CUUID'); // 獲取 CUUID
+    if (!jwt || !paseto || !CUUID) throw new Error("Missing auth tokens or CUUID.");
+
+    // --- 手動加密流程 ---
+    const servPubKeyData = await $fetch<{ pubkey: string }>("/api/ECDHpubkey");
+    if (!servPubKeyData || !servPubKeyData.pubkey) throw new Error("Failed to get server public key.");
+    const pair = genKeyCurve25519();
+    shared = calSharedKey(servPubKeyData.pubkey, pair.getPrivate("hex"));
+    // Payload 包含 token 和新內容
+    const payload = { jwt, paseto, CUUID, content: newContent };
+    const encryptedCoreData = await RequestEncryption.encryptMessage(JSON.stringify(payload), shared);
+    const requestBody: EncryptReq = {
+      iv: encryptedCoreData.iv,
+      encryptedMessage: encryptedCoreData.encryptedMessage,
+      pubkey: pair.getPublic("hex")
+    };
+    // --- 加密流程結束 ---
+
+    // **假設更新評論 API 是 /api/post/{postId}/comments/{commentId}**
+    // **注意：你需要確認後端實際使用的 API 路徑**
+    const response_enc = await $fetch<EncryptedRes>(`/api/post/${post.id}/comments/${comment.id}`, { // <--- 確認 API 路徑
+      method: 'PUT', // 或 PATCH，取決於後端實現
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+      body: JSON.stringify(requestBody)
+    });
+
+    // 檢查和解密回應 (假設成功時返回簡單的 success)
+    if (!response_enc || !response_enc.encryptedMessage || !response_enc.iv) {
+        // 即使成功，後端也可能不返回加密體，只返回 2xx 狀態碼
+        // 如果是這種情況，下面的解密會失敗，但操作可能已成功
+        // 這裡假設成功時一定返回加密的 { success: true }
+        console.warn("Update comment response might be missing encrypted data, assuming success based on status code.");
+        // throw new Error("Invalid response from update comment API.");
+    }
+
+    // 嘗試解密，如果後端成功時不返回加密體，這一步會進入 catch
+    const decryptedJsonString = await RequestEncryption.decryptMessage(response_enc.encryptedMessage, shared, response_enc.iv);
+    const response = JSON.parse(decryptedJsonString) as { success: boolean; message?: string };
+
+    if (response && response.success) {
+        console.log(`Comment ${comment.id} updated successfully.`);
+        comment.editContent = ''; // 清空編輯內容
+    } else {
+        // 如果解密成功但 success 為 false
+        throw new Error(response?.message || 'Failed to update comment');
+    }
 
   } catch (err: any) {
     console.error(`Error updating comment ${comment.id}:`, err);
-    comment.content = originalContent; // 恢復原狀
+    // 出錯時恢復原狀
+    comment.content = originalContent;
     comment.isEditing = true; // 保持編輯狀態以便用戶重試
-    alert(`Failed to update comment: ${err.data?.message || 'Unknown error'}`);
+    const message = err.data?.message || err.message || 'Unknown error';
+    alert(`Failed to update comment: ${message}`);
   }
 };
 
 // Delete a comment
 const deleteComment = async (post: UserPost, comment: Comment) => {
-  if (!confirm('Are you sure?')) return;
+  if (!confirm('Are you sure you want to delete this comment?')) return;
+
   const commentIndex = post.comments.findIndex((c) => c.id === comment.id);
   if (commentIndex === -1) return;
+
+  // 樂觀更新 UI
   post.comments.splice(commentIndex, 1);
   post.commentCount--;
 
+  let shared: string | undefined;
   try {
-    // 使用 fetchEncrypted，DELETE 通常沒有 payload
-    await fetchEncrypted(
-      `/api/posts/${post.id}/comments/${comment.id}`,
-      { method: 'DELETE' }
-    );
-    console.log(`Comment ${comment.id} deleted successfully.`);
+    const jwt = sessionStorage.getItem('jwt');
+    const paseto = sessionStorage.getItem('paseto');
+    const CUUID = sessionStorage.getItem('CUUID');
+    if (!jwt || !paseto || !CUUID) throw new Error("Missing auth tokens or CUUID.");
+
+    // --- 手動加密流程 ---
+    const servPubKeyData = await $fetch<{ pubkey: string }>("/api/ECDHpubkey");
+    if (!servPubKeyData || !servPubKeyData.pubkey) throw new Error("Failed to get server public key.");
+    const pair = genKeyCurve25519();
+    shared = calSharedKey(servPubKeyData.pubkey, pair.getPrivate("hex"));
+    // Payload 可能只需要 token，或為空，取決於後端是否需要 body 進行解密驗證
+    const payload = { jwt, paseto, CUUID };
+    const encryptedCoreData = await RequestEncryption.encryptMessage(JSON.stringify(payload), shared);
+    const requestBody: EncryptReq = {
+      iv: encryptedCoreData.iv,
+      encryptedMessage: encryptedCoreData.encryptedMessage,
+      pubkey: pair.getPublic("hex")
+    };
+    // --- 加密流程結束 ---
+
+    // **假設刪除評論 API 是 /api/post/{postId}/comments/{commentId}**
+    // **注意：你需要確認後端實際使用的 API 路徑和方法**
+    const response_enc = await $fetch<EncryptedRes>(`/api/post/${post.id}/comments/${comment.id}`, { // <--- 確認 API 路徑
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+      // DELETE 請求通常不應該有請求體，但如果你的後端需要加密的 token 來驗證，則需要發送
+      // 如果後端不需要 body，則移除 body: JSON.stringify(requestBody)
+      body: JSON.stringify(requestBody)
+    });
+
+    // 檢查和解密回應 (假設成功時返回簡單的 success)
+    if (!response_enc || !response_enc.encryptedMessage || !response_enc.iv) {
+       // 刪除成功後端可能只返回 204 No Content，沒有加密體
+       console.log(`Comment ${comment.id} likely deleted successfully (based on status code).`);
+       // throw new Error("Invalid response from delete comment API."); // 可能不需要拋錯
+       return; // 直接返回，因為 UI 已經更新
+    }
+
+    // 嘗試解密
+    const decryptedJsonString = await RequestEncryption.decryptMessage(response_enc.encryptedMessage, shared, response_enc.iv);
+    const response = JSON.parse(decryptedJsonString) as { success: boolean; message?: string };
+
+    if (response && response.success) {
+        console.log(`Comment ${comment.id} deleted successfully.`);
+    } else {
+        // 如果解密成功但 success 為 false
+        throw new Error(response?.message || 'Failed to delete comment');
+    }
 
   } catch (err: any) {
     console.error(`Error deleting comment ${comment.id}:`, err);
-    // 恢復 UI (如果需要，但通常刪除失敗不恢復)
+    // 恢復 UI (如果需要)
     // post.comments.splice(commentIndex, 0, comment); // 重新插入
     // post.commentCount++;
-    alert(`Failed to delete comment: ${err.data?.message || 'Unknown error'}`);
+    const message = err.data?.message || err.message || 'Unknown error';
+    alert(`Failed to delete comment: ${message}`);
+    // 可能需要重新獲取帖子數據以同步狀態
   }
 };
 
@@ -904,10 +1003,10 @@ const addComment = async (post: UserPost) => {
   const content = post.newComment?.trim();
   if (!content) return;
 
-  const tempCommentId = `temp-${Date.now()}`; // 臨時 ID 用於 UI
-  const newCommentData: Comment = { // 創建一個部分評論對象用於樂觀更新
+  const tempCommentId = `temp-${Date.now()}`;
+  const newCommentData: Comment = {
     id: tempCommentId,
-    icon: currentUser.value.icon,
+    icon: currentUser.value.icon, // 使用 currentUser 的頭像
     username: currentUser.value.username,
     userID: currentUser.value.userID,
     date: new Date(),
@@ -916,34 +1015,69 @@ const addComment = async (post: UserPost) => {
     editContent: ''
   };
 
-  // 更新 UI
-  post.comments.unshift(newCommentData); // 添加到評論列表頂部
+  post.comments.unshift(newCommentData);
   post.commentCount++;
-  post.newComment = ''; // 清空輸入框
+  post.newComment = '';
+
+  let shared: string | undefined;
+
+  console.log("Adding comment to post:", post.id, typeof post.id); // 確認 post.id 有效
+  const apiUrl = `/api/post/${post.id}/comments`; // 確認 apiUrl 正確
+  console.log("Calling add comment API:", apiUrl);
 
   try {
-    // 使用 fetchEncrypted，將評論內容作為 payload 加密
-    const savedComment = await fetchEncrypted<Comment>(
-      `/api/posts/${post.id}/comments`,
-      { method: 'POST' },
-      { content: content } // 要加密的數據
-    );
-    const index = post.comments.findIndex(c => c.id === tempCommentId);
-    if (index !== -1) {
-      savedComment.date = new Date(savedComment.date); // 轉換日期
-      post.comments[index] = savedComment;
-      console.log(`Comment added successfully for post ${post.id}:`, savedComment);
+    const jwt = sessionStorage.getItem('jwt');
+    const paseto = sessionStorage.getItem('paseto');
+    const CUUID = sessionStorage.getItem('CUUID');
+    if (!jwt || !paseto || !CUUID) throw new Error("Missing auth tokens or CUUID.");
+
+    // --- 手動加密流程 ---
+    const servPubKeyData = await $fetch<{ pubkey: string }>("/api/ECDHpubkey");
+    if (!servPubKeyData || !servPubKeyData.pubkey) throw new Error("Failed to get server public key.");
+    const pair = genKeyCurve25519();
+    shared = calSharedKey(servPubKeyData.pubkey, pair.getPrivate("hex"));
+    // Payload 包含 token 和評論內容
+    const payload = { jwt, paseto, CUUID, content: content };
+    const encryptedCoreData = await RequestEncryption.encryptMessage(JSON.stringify(payload), shared);
+    const requestBody: EncryptReq = { iv: encryptedCoreData.iv, encryptedMessage: encryptedCoreData.encryptedMessage, pubkey: pair.getPublic("hex") };
+    // --- 加密流程結束 ---
+
+    // **假設新增評論 API 是 /api/post/{postId}/comments**
+    const response_enc = await $fetch<EncryptedRes>(`/api/post/${post.id}/comments`, { // <--- 確認 API 路徑
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+      body: JSON.stringify(requestBody)
+    });
+    console.log("Add Comment Fetch Options:", response_enc);
+    //response_enc = await $fetch<EncryptedRes>(apiUrl, fetchOptions);
+
+    if (!response_enc || !response_enc.encryptedMessage || !response_enc.iv) throw new Error("Invalid response from add comment API.");
+    const decryptedJsonString = await RequestEncryption.decryptMessage(response_enc.encryptedMessage, shared, response_enc.iv);
+    // 假設後端成功時返回包含新評論數據的結構
+    const response = JSON.parse(decryptedJsonString) as { success: boolean; comment?: Comment; message?: string };
+
+    if (response && response.success && response.comment) {
+        const savedComment = response.comment;
+        const index = post.comments.findIndex(c => c.id === tempCommentId);
+        if (index !== -1) {
+            savedComment.date = new Date(savedComment.date); // 轉換日期
+            // 確保頭像正確 (如果後端不返回 icon)
+            savedComment.icon = savedComment.icon || currentUser.value.icon;
+            post.comments[index] = savedComment; // 用真實數據替換臨時評論
+            console.log(`Comment added successfully for post ${post.id}:`, savedComment);
+        }
+    } else {
+        throw new Error(response?.message || 'Failed to add comment or invalid response');
     }
   } catch (err: any) {
     console.error(`Error adding comment for post ${post.id}:`, err);
     // 從 UI 中移除臨時評論
     const index = post.comments.findIndex(c => c.id === tempCommentId);
-    if (index !== -1) {
-      post.comments.splice(index, 1);
-    }
+    if (index !== -1) post.comments.splice(index, 1);
     post.commentCount--; // 恢復計數
-    post.newComment = content; // 恢復輸入框內容以便用戶重試
-    alert(`Failed to add comment: ${err.data?.message || 'Unknown error'}`);
+    post.newComment = content; // 恢復輸入框內容
+    const message = err.data?.message || err.message || 'Unknown error';
+    alert(`Failed to add comment: ${message}`);
   }
 };
 
@@ -1053,47 +1187,97 @@ const openCreateStory = () => {
 
 // 獲取貼文
 const fetchPosts = async (pageNumber: number) => {
+  // 恢復 hasMore 檢查
   if (isLoading.value || !hasMore.value) return;
   isLoading.value = true;
   error.value = null;
   console.log(`Fetching posts for page ${pageNumber}...`);
+  let shared: string | undefined;
 
   try {
-    const response = await fetchEncrypted<{ posts: UserPost[], hasMorePages: boolean }>(
-      `/api/post?page=${pageNumber}`,
-      { method: 'GET' } // GET 請求通常沒有 payload
-    );
+    const jwt = sessionStorage.getItem('jwt');
+    const paseto = sessionStorage.getItem('paseto');
+    if (!jwt || !paseto) throw new Error("Missing auth tokens.");
 
-    console.log('API Response:', response);
+    // --- 手動加密流程 ---
+    const servPubKeyData = await $fetch<{ pubkey: string }>("/api/ECDHpubkey");
+    if (!servPubKeyData || !servPubKeyData.pubkey) throw new Error("Failed to get server public key.");
+    const pair = genKeyCurve25519();
+    shared = calSharedKey(servPubKeyData.pubkey, pair.getPrivate("hex"));
 
-    if (response && response.posts && Array.isArray(response.posts)) {
-      const newPosts = response.posts.map(post => ({
-        ...post,
-        likes: post.likes ?? 0, // <--- 提供默認值
-        isLiked: post.isLiked ?? false, // <--- 提供默認值        
-        date: new Date(post.date), // 確保 date 是 Date 對象
-        comments: post.comments.map(comment => ({
+    // 準備 payload，包含 token 和分頁信息
+    const payload = { jwt, paseto, page: pageNumber, limit: 10 }; // 假設每頁 10 條
+
+    const encryptedCoreData = await RequestEncryption.encryptMessage(JSON.stringify(payload), shared);
+    const requestBody: EncryptReq = {
+      iv: encryptedCoreData.iv,
+      encryptedMessage: encryptedCoreData.encryptedMessage,
+      pubkey: pair.getPublic("hex")
+    };
+    // --- 加密流程結束 ---
+
+    // **關鍵點：使用 POST 訪問 /api/post/userPostGet**
+    const response_enc = await $fetch<EncryptedRes>('/api/post/userPostGet', { // <--- API 路徑
+      method: 'POST', // <--- 使用 POST
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+      body: JSON.stringify(requestBody) // 發送加密體
+    });
+
+    // 檢查加密回應結構
+    if (!response_enc || !response_enc.encryptedMessage || !response_enc.iv) {
+      throw new Error("Invalid response structure from userPostGet");
+    }
+
+    // 解密回應
+    const decryptedJsonString = await RequestEncryption.decryptMessage(response_enc.encryptedMessage, shared, response_enc.iv);
+    // 解析解密後的 JSON，期望包含 posts 和 hasMorePages
+    const response = JSON.parse(decryptedJsonString) as { success: boolean; posts: UserPost[]; hasMorePages: boolean; message?: string };
+
+    console.log('API Response (decrypted):', response);
+
+    // 處理業務邏輯和數據
+    if (response && response.success && Array.isArray(response.posts)) {
+      const newPosts = response.posts.map(apiPost => ({
+        ...apiPost,
+        id: apiPost.id, // 確保 id 被正確映射
+        likes: apiPost.likes ?? 0,
+        isLiked: apiPost.isLiked ?? false,
+        date: new Date(apiPost.date), // 轉換日期
+        comments: (apiPost.comments || []).map(comment => ({
           ...comment,
-          date: new Date(comment.date) // 確保評論日期也是 Date 對象
-        }))
+          date: new Date(comment.date)
+        })),
+        // 確保 icon 存在且有前綴
+        icon: apiPost.icon
+            ? (apiPost.icon.startsWith('data:image') ? apiPost.icon : "data:image/png;base64," + apiPost.icon)
+            : "data:image/png;base64," + new Identicon(sha3_256(apiPost.username || apiPost.userID), 100).toString()
       }));
 
+      // 追加或替換數據
       if (pageNumber === 1) {
-        displayedPosts.value = newPosts; // 首次加載替換
+        displayedPosts.value = newPosts;
       } else {
-        displayedPosts.value = [...displayedPosts.value, ...newPosts]; // 追加新貼文
+        displayedPosts.value = [...displayedPosts.value, ...newPosts];
       }
-      hasMore.value = response.hasMorePages ?? (newPosts.length > 0); // 更新是否有更多頁面
-      page.value = pageNumber + 1; // 準備加載下一頁
+      // 更新 hasMore 狀態
+      hasMore.value = response.hasMorePages ?? (newPosts.length > 0);
+      // 更新頁碼 (只有在還有更多頁時才增加)
+      if (hasMore.value) {
+          page.value = pageNumber + 1;
+      }
       console.log('Posts loaded successfully. Total:', displayedPosts.value.length, 'Has more:', hasMore.value);
     } else {
-      console.warn('No posts found or invalid response structure.');
+      // 處理後端返回 success: false 或數據結構不對的情況
+      console.warn('No posts found or invalid response structure:', response?.message);
       hasMore.value = false; // 沒有更多數據
+      if (pageNumber === 1) displayedPosts.value = []; // 如果第一頁就失敗，清空列表
+      // 可以選擇性地設置 error.value = response?.message
     }
   } catch (err: any) {
     console.error('Error fetching posts:', err);
-    error.value = err.data?.message || 'Failed to load posts. Please try again.';
-    // 可以考慮在多次失敗後停止嘗試 hasMore.value = false;
+    const message = err.data?.message || err.message || 'Failed to load posts.';
+    error.value = message;
+    hasMore.value = false; // 出錯時停止加載更多
   } finally {
     isLoading.value = false;
   }
