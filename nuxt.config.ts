@@ -68,7 +68,8 @@ export default defineNuxtConfig(
         
       } ,
       experimental:{
-        wasm: true
+        wasm: true,
+        websocket : true
       }
     },
     

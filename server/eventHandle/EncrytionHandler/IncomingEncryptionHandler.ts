@@ -44,3 +44,23 @@ export const GetSharedKeyHandler = (body:any)=>{
 
 }
 
+export const IncomingReqEncryptionPureVersion = async <T extends ZodRawShape>(data:any,  outputShema : ZodObject<T>):
+ Promise<z.infer<typeof outputShema>>  =>{
+    const req = EncryptReqShema.safeParse(data)
+    if (!req.success) {
+        throw InvalidError()
+    }
+    let shared =  calSharedKey(req.data.pubkey, process.env.ECC_PRIVATE_KEY!)
+    let decrypt = await RequestEncryption.decryptMessage(req.data.encryptedMessage, shared, req.data.iv)
+    
+    let output = outputShema.safeParse(JSON.parse(decrypt))
+    //console.log(output.error);
+    
+    if (!output.success) {
+        console.log("error in request" + output.error);   
+        throw createError("error in request")
+    }
+    return output.data
+
+}
+
