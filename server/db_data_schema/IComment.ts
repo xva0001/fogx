@@ -15,7 +15,7 @@ export interface Icomment {
 const CommentSchema = new Schema<Icomment>({
   UserUUID: { type: String, required: true },
   PostUUID: { type: String, required: true },
-  createdDate: { type: Date, immutable: true },
+  createdDate: { type: Date, immutable: true, default: Date.now },
   isPublic:{type: Boolean,required:true  },
   iv:{type:String,required:true,default:""},
   content: { type: String, required: true, maxlength: 1000 },
@@ -23,5 +23,8 @@ const CommentSchema = new Schema<Icomment>({
   objSign: { type: String, required: true },
 });
 const Comment = mongoose.model<Icomment>('Comment', CommentSchema);
+
+CommentSchema.index({ PostUUID: 1, createdDate: -1 });
+CommentSchema.index({ UserUUID: 1 });
 
 export { Comment, CommentSchema }
