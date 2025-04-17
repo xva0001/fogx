@@ -1,5 +1,11 @@
 export default defineAppConfig({
 
+    peerServer:{
+        enable: true,
+        port : 9000, //port : number
+        path : null
+    },
+
     logLevel: 4, 
     // 0 : trace, 
     // 1 : debug, 
