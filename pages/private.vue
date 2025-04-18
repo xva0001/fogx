@@ -438,7 +438,7 @@ const maskId = (id: string): string => {
 const formatTimeAgo = (dateInput: Date | string) => {
   const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
   if (!(date instanceof Date) || isNaN(date.getTime())) {
-    return 'Invalid Date';
+    return '';
   }
 
   const now = new Date();
@@ -574,52 +574,51 @@ const sanitizeImageData = (imageData: string): string => {
   return imageData;
 };
 
-// 本地存储相关的函数
+// 本地存储相关的函数, not need, it will add risk
 const loadRecentContent = () => {
-  if (process.client) {
-    const savedContent = localStorage.getItem('recentPrivateContent');
-    if (savedContent) {
-      try {
-        const parsed = JSON.parse(savedContent);
-        recentContent.value = parsed.map((item: any) => ({
-          ...item,
-          lastAccessed: new Date(item.lastAccessed)
-        }));
-      } catch (e) {
-        console.error('Failed to parse recent content from localStorage:', e);
-        recentContent.value = [];
-      }
-    }
-  }
+  // if (process.client) {
+  //   const savedContent = localStorage.getItem('recentPrivateContent');
+  //   if (savedContent) {
+  //     try {
+  //       const parsed = JSON.parse(savedContent);
+  //       recentContent.value = parsed.map((item: any) => ({
+  //         ...item,
+  //         lastAccessed: new Date(item.lastAccessed)
+  //       }));
+  //     } catch (e) {
+  //       console.error('Failed to parse recent content from localStorage:', e);
+  //       recentContent.value = [];
+  //     }
+  //   }
+  // }
+
 };
 
 const saveRecentContent = () => {
-  if (process.client) {
-    const limitedRecent = [...recentContent.value]
-      .sort((a, b) => b.lastAccessed.getTime() - a.lastAccessed.getTime())
-      .slice(0, 5);
+  // if (process.client) {
+  //   const limitedRecent = [...recentContent.value]
+  //     .sort((a, b) => b.lastAccessed.getTime() - a.lastAccessed.getTime())
+  //     .slice(0, 5);
     
-    localStorage.setItem('recentPrivateContent', JSON.stringify(limitedRecent));
-  }
+  //   localStorage.setItem('recentPrivateContent', JSON.stringify(limitedRecent));
+  // }
 };
 
 const addToRecentContent = (item: RecentContentItem) => {
-  const existingIndex = recentContent.value.findIndex(i => i.id === item.id && i.type === item.type);
-  if (existingIndex !== -1) {
-    recentContent.value.splice(existingIndex, 1);
-  }
+  // const existingIndex = recentContent.value.findIndex(i => i.id === item.id && i.type === item.type);
+  // if (existingIndex !== -1) {
+  //   recentContent.value.splice(existingIndex, 1);
+  // }
   
-  recentContent.value.unshift(item);
-  saveRecentContent();
+  // recentContent.value.unshift(item);
+  // saveRecentContent();
 };
 
 // 访问私人内容的函数
 const accessPrivateContent = async () => {
   if (!isFormValid.value || isLoading.value) return;
-  
   isLoading.value = true;
   error.value = null;
-  
   try {
     const jwt = sessionStorage.getItem('jwt');
     const paseto = sessionStorage.getItem('paseto');
@@ -640,12 +639,14 @@ const accessPrivateContent = async () => {
     const pair = genKeyCurve25519();
     const clientPubKey = pair.getPublic("hex");
     const shared = calSharedKey(servPubKeyData.pubkey, pair.getPrivate("hex"));
-    
+    /**
+     * server\request_sheme\general\generalTokenSchema.ts
+     */
     const payload = {
-      jwt,
-      paseto,
-      contentId,
-      password
+      jwt : jwt,
+      paseto:paseto,
+      postUUID: (contentId),
+      password : sha3_256(password)
     };
     
     const encryptedData = await RequestEncryption.encryptMessage(
@@ -665,7 +666,6 @@ const accessPrivateContent = async () => {
     
     const response = await $fetch<EncryptedRes>(apiEndpoint, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify(requestBody)
     });
     
@@ -680,13 +680,13 @@ const accessPrivateContent = async () => {
     );
     
     const parsedResponse = JSON.parse(decryptedResponse);
-    
-    if (!parsedResponse.success) {
+
+    if (parsedResponse.success==false) {
       throw new Error(parsedResponse.message || 'Failed to access private content');
     }
     
     if (contentType === 'story') {
-      const story = parsedResponse.story;
+      const story = parsedResponse;
       if (story.userImage == story.username) {
         story.userImage = new Identicon(sha3_256(story.username), 100).toString();
       }
@@ -698,15 +698,16 @@ const accessPrivateContent = async () => {
         username: story.username,
         image: story.image,
         userImage: story.userImage,
-        date: new Date(story.date || Date.now())
       };
     } else {
-      const post = parsedResponse.post;
+      const post = parsedResponse;
       if (!post.icon) {
         post.icon = "data:image/png;base64," + new Identicon(sha3_256(post.username || post.userID), 100).toString();
       } else if (!post.icon.startsWith('data:image')) {
         post.icon = "data:image/png;base64," + post.icon;
       }
+
+      
       
       currentContent.value = {
         type: 'post',
@@ -881,11 +882,11 @@ const handlePrivatePostSubmit = async (postInputData: any) => {
 
     const fixedIV = RequestEncryption.getRandIV()
 
-    
     const postData = {
       jwt,
       paseto,
       isPublic: false,
+      iv : fixedIV,
       title: (await RequestEncryption.encryptMessageWithFixIV(postInputData.title,sha3_256(postInputData.password),fixedIV)).encryptedMessage,
       content: (await RequestEncryption.encryptMessageWithFixIV(postInputData.content,sha3_256(postInputData.password),fixedIV)).encryptedMessage,
       Image: (await RequestEncryption.encryptMessageWithFixIV(JSON.stringify(imageData ? [imageData] : []),sha3_256(postInputData.password),fixedIV)).encryptedMessage,
@@ -903,19 +904,21 @@ const handlePrivatePostSubmit = async (postInputData: any) => {
       method: 'POST',
       body: JSON.stringify(encrypt)
     });
-    
+  
+    if (response.success == false) {
+      throw new Error("Response Problem")
+    }
     const decryptedResponse = await RequestEncryption.decryptMessage(
       response.encryptedMessage,
       shared,
       response.iv
     );
-    
+
     const parsedResponse = JSON.parse(decryptedResponse);
     
-    if (!parsedResponse.success && !parsedResponse.id) {
-      throw new Error(parsedResponse.message || 'Failed to create private post');
-    }
+    console.log(parsedResponse);
     
+
     alert(`Private post created successfully!\nID: ${parsedResponse.id}\nPlease save this ID to access your post later.`);
     
     addToRecentContent({

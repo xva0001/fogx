@@ -75,7 +75,7 @@ export const createPrivate = async(event: H3Event)=>{
             iv: decrypted.isPublic ? "" : decrypted.iv!,
             title: decrypted.title,
             content: decrypted.content,
-            Image: decrypted.Image?[decrypted.Image] : [],
+            Image: decrypted.Image?[decrypted.Image] : [], //it is string, always [0]
             tags: decrypted.tags || []
         }
 

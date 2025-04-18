@@ -213,7 +213,7 @@ function convertType(value: string, sample: any): any {
 function validateStory(story: IStory): IStory {
     const requiredFields: (keyof IStory)[] = ['UUID', 'UserUUID', 'createdDate', 'isPublic', 'Image'];
     for (const field of requiredFields) {
-        if (!story[field]) {
+        if (story[field]==null) {
             throw new Error(`Missing required field: ${String(field)}`);
         }
     }

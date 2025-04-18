@@ -3,7 +3,7 @@ import { PostSchema } from "../db_data_schema/PostSchema";
 
 export async function findPostByID(dbConnector: MongoDBConnector, uuid: string) {
     const connections = dbConnector.getDbConnections();
-
+    let problemInt: number[] = []
     let contents = new Array(connections.length);
 
     await Promise.all(connections.map(async (conn, index) => {
@@ -25,7 +25,9 @@ export async function findPostByID(dbConnector: MongoDBConnector, uuid: string) 
         const element = contents[index];
         if (element) {
             counter++;
+        }else {
+            problemInt.push(index)
         }
     }
-    return {contents, counter};
+    return {contents, counter,problemInt};
 }

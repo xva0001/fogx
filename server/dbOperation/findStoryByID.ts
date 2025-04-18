@@ -1,18 +1,28 @@
-import { MongoDBConnector } from "#imports";
-import { StorySchema } from "../db_data_schema/StorySchema";
+import { cleanMongoObject, MongoDBConnector } from "#imports";
+import { IStory, StorySchema } from "../db_data_schema/StorySchema";
 
 
-export async function findStoryByID(dbConnector:MongoDBConnector,uuid:string){
+export async function findStoryByID(dbConnector: MongoDBConnector, uuid: string) {
 
     const connections = dbConnector.getDbConnections()
 
-    let contents = new Array(connections.length)
+    let contents: (IStory | undefined)[] = new Array(connections.length)
 
-    await Promise.all(connections.map(async(conn,index)=>{
+    let problemInt: number[] = []
 
-        let dbContent = await conn.model("story",StorySchema).findOne({UUID:uuid}).lean()
+    await Promise.all(connections.map(async (conn, index) => {
+
+        let dbContent = await conn.model("story", StorySchema).findOne({ UUID: uuid }).lean()
+
         if (dbContent) {
-            contents[index] = dbContent
+
+            let cleanStory = cleanMongoObject(dbContent) as IStory
+
+            if (!verifyPacket.verifyStory(cleanStory)) {
+                contents[index] = undefined
+                return
+            }
+            contents[index] = cleanStory
         } else {
             contents[index] = undefined
         }
@@ -23,10 +33,12 @@ export async function findStoryByID(dbConnector:MongoDBConnector,uuid:string){
         const element = contents[index];
         if (element) {
             counter++
+        } else {
+            problemInt.push(index)
         }
     }
 
-    return {contents, counter}
+    return { contents, counter, problemInt }
 
 
 }

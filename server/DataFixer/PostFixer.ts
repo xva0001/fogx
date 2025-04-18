@@ -32,7 +32,7 @@ function convertType(value: string, sample: any): any {
 function validatePost(post: IPost): IPost {
     const requiredFields: (keyof IPost)[] = ['UUID', 'UserUUID', 'createdDate', 'isPublic', 'Image', 'title', 'content'];
     for (const field of requiredFields) {
-        if (!post[field]) {
+        if (post[field]==null) {
             throw new Error(`Missing required field: ${String(field)}`);
         }
     }
@@ -43,7 +43,7 @@ function validatePost(post: IPost): IPost {
  * 
  * @param arr 
  * @param problemIndices 
- * @returns IPost
+ * @returns IPost title in [0], conent in [0]
  */
 export async function getCorrectPost(
     arr: (IPost | undefined)[],

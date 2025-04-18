@@ -88,8 +88,8 @@ export const modifyPostHandler = async (event: H3Event) => {
         
         // Prepare updated fields
         const updatedFields: Partial<IPost> = {
-            isPublic: decrypted.isPublic,
-            iv: decrypted.iv || "",
+            //isPublic: decrypted.isPublic,
+            //iv: decrypted.iv || "",
             title: [decrypted.title],
             content: [decrypted.content],
             Image: decrypted.Image || [],
