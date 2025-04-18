@@ -30,14 +30,8 @@ export interface IPost {
   //can be null
   tags: string[];
 
-  likes: string[]; //
-  likeCount?: number; //
-
   objHash:string,
   objSign:string
-
-  commentCount?: number;
-  comments?: Icomment[];
 }
 
 
@@ -58,12 +52,6 @@ const PostSchema = new Schema<IPost>({
     type: [String],
     default: [],
   },
-
-  likes: { type: [String], default: [] },
-  likeCount: { type: Number, default: 0 },
-
-  commentCount: { type: Number, default: 0 },
-  comments: { type: [CommentSchema], default: [] },
 
   objHash:{type:String,required:true},
   objSign:{type:String,required:true},
