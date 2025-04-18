@@ -34,6 +34,14 @@
             :class="isDark ? 'bg-dark border-gray-700 text-gray-300' : 'bg-white border-gray-300'"></textarea>
         </div>
 
+        <!-- Password Input (only for private mode) -->
+        <div v-if="mode === 'private'" class="space-y-1">
+          <label class="block text-sm font-medium" :class="isDark ? 'text-gray-300' : 'text-gray-700'">Password</label>
+          <input v-model="password" type="password" placeholder="Enter password"
+            class="w-full px-4 py-2 rounded-lg border focus:outline-none focus:border-blue-500"
+            :class="isDark ? 'bg-dark border-gray-700 text-gray-300' : 'bg-white border-gray-300'">
+        </div>
+
         <!-- Submit Button -->
         <button @click="submit"
           class="w-full py-2 px-4 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
@@ -51,6 +59,10 @@ const props = defineProps({
   type: {
     type: String,
     validator: (value: string) => ['story', 'post'].includes(value)
+  },
+  mode: {
+    type: String,
+    default: ''
   }
 });
 
@@ -64,6 +76,7 @@ const selectedFile = ref<File | null>(null);
 const previewUrl = ref<string>('');
 const title = ref('');
 const content = ref('');
+const password = ref('');
 
 const triggerFileInput = () => {
   fileInput.value?.click();
@@ -87,6 +100,10 @@ const isValid = computed(() => {
 
 const submit = async () => {
   if (!isValid.value) return;
+  if (props.mode === 'private' && !password.value) {
+    alert('Please enter a password for private content');
+    return;
+  }
 
   const formData = new FormData();
   if (selectedFile.value) {
@@ -96,6 +113,10 @@ const submit = async () => {
   if (props.type === 'post') {
     formData.append('title', title.value);
     formData.append('content', content.value);
+  }
+  
+  if (props.mode === 'private') {
+    formData.append('password', password.value);
   }
 
   for (const [key, value] of formData.entries()) {

@@ -217,14 +217,16 @@
     <CreateModal 
       v-if="showCreatePrivateStory" 
       :is-open="showCreatePrivateStory" 
-      type="story" 
+      type="story"
+      mode="private"
       @close="showCreatePrivateStory = false"
       @submit="handlePrivateStorySubmit" />
 
     <CreateModal 
       v-if="showCreatePrivatePost" 
       :is-open="showCreatePrivatePost" 
-      type="post" 
+      type="post"
+      mode="private"
       @close="showCreatePrivatePost = false"
       @submit="handlePrivatePostSubmit" />
   </div>
@@ -777,10 +779,12 @@ const handlePrivateStorySubmit = async (storyInputData: any) => {
     const pair = genKeyCurve25519();
     const shared = calSharedKey(servPubKeyData.pubkey, pair.getPrivate("hex"));
     const fixedIV = RequestEncryption.getRandIV()
+    console.log(storyInputData.password);
+    
     const storyData = {
-      jwt,
-      paseto,
-      image: await RequestEncryption.encryptMessageWithFixIV(storyInputData.image,storyInputData.password,fixedIV),
+      jwt:jwt,
+      paseto:paseto,
+      image: (await RequestEncryption.encryptMessageWithFixIV(storyInputData.image,sha3_256(storyInputData.password),fixedIV)).encryptedMessage,
       isPublic: false,
       iv:fixedIV,
       requestTime: new Date().toISOString()
@@ -793,10 +797,15 @@ const handlePrivateStorySubmit = async (storyInputData: any) => {
     );
     encrypt["pubkey"] = pair.getPublic("hex");
     
-    const response = await $fetch<EncryptedRes>('/api/stories/addPrivate', {
+    const response :any = await $fetch('/api/stories/addPrivate', {
       method: 'POST',
       body: JSON.stringify(encrypt)
     });
+    console.log(response);
+    
+    if (response.success === false) {
+      throw new Error(response.message || 'Failed to create private story');
+    }
     
     const decryptedResponse = await RequestEncryption.decryptMessage(
       response.encryptedMessage,
@@ -806,9 +815,9 @@ const handlePrivateStorySubmit = async (storyInputData: any) => {
     
     const parsedResponse = JSON.parse(decryptedResponse);
     
-    if (!parsedResponse.success) {
-      throw new Error(parsedResponse.message || 'Failed to create private story');
-    }
+    // if (parsedResponse.success===false) {
+    //   throw new Error(parsedResponse.message || 'Failed to create private story');
+    // }
     
     alert(`Private story created successfully!\nID: ${parsedResponse.id}\nPlease save this ID to access your story later.`);
     

@@ -70,6 +70,7 @@ class RequestEncryption {
     const key = sharedKey.substring(0, RequestEncryption.keySize);
     
     const cipher = forge.cipher.createCipher('AES-CBC', key);
+    
     cipher.start({ iv:decipheredIV });
     cipher.update(forge.util.createBuffer(message, 'utf8'));
     cipher.finish();

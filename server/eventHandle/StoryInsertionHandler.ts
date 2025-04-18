@@ -12,21 +12,23 @@ import { IStory } from "../db_data_schema/StorySchema"
 import { isValidImage } from "../utils/checkImage"
 import { getUserInfo } from "../dbOperation/getUserInfo"
 import RequestEncryption from "~/shared/Request/requestEncrytion"
+import consola from "consola"
 
+const logger = consola.withTag("StoryInsertionHandler")
 export const StoryInsertionHandler = async (event:H3Event)=>{
 
     let shared 
     let decrypted
     const body = await readBody(event)
     try {
-        console.log("hi");
+        logger.log("hi");
         
         decrypted = await IncomingReqEncryptionHandler(event,IstorySchemaVaildatorRequestObj);
         /**
          * extend checking
          * 
          */
-        //console.log(decrypted);
+        //logger.log(decrypted);
         
 
         if (decrypted.isPublic === true && (decrypted.iv != undefined )) {
@@ -41,7 +43,7 @@ export const StoryInsertionHandler = async (event:H3Event)=>{
             decrypted.iv = ""
             let result = await isValidImage(decrypted.image)
             if (result === false) {
-                console.log("this is not a image");
+                logger.log("this is not a image");
                 
                 throw new Error("this is not a image")
             }
@@ -98,12 +100,12 @@ export const StoryInsertionHandler = async (event:H3Event)=>{
             objSign:""
         }
 
-        console.log("UUID : ",newStory.UUID);
+        logger.log("UUID : ",newStory.UUID);
         
 
         let answer = await InsertStory(dbConnector,newStory,decrypted.image)
 
-        console.log(answer.length);
+        logger.log(answer.length);
         
 
         // return {}
@@ -123,7 +125,7 @@ export const StoryInsertionHandler = async (event:H3Event)=>{
         try {
             userInfo = await getUserInfo(dbConnector,userUUID)    
         } catch (error) {
-            console.log(error);
+            logger.log(error);
             
         }
         
@@ -141,7 +143,7 @@ export const StoryInsertionHandler = async (event:H3Event)=>{
 
 
     } catch (error) {
-        console.log(error);
+        logger.log(error);
         
         throw createError({message:"error on conn or error on gener",statusCode: 500 })
     }finally{
