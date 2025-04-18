@@ -42,3 +42,17 @@ export const IPostUpdateRequest = z.object({
     tags: z.array(z.string()).optional(),
     requestTime: z.string().datetime({offset: true})
 })
+
+export const IpostSchemaVaildatorRequestObjPrivate = z.object(
+    {
+        jwt: z.string(),
+        paseto: z.string(),
+        isPublic: z.boolean(),
+        iv: z.string(),
+        title: z.string(),
+        content: z.string(),
+        Image: z.array(z.string()).optional(),
+        tags: z.array(z.string()).optional(),
+        requestTime: z.string().datetime({offset:true})
+    }
+)

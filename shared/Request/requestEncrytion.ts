@@ -60,6 +60,42 @@ class RequestEncryption {
       throw new Error('Failed to decrypt message');
     }
   }
+
+  static async encryptMessageWithFixIV(message: string, sharedKey: string,iv:string): Promise<{encryptedMessage: string}> {
+    if (!message || !sharedKey) {
+      throw new Error('Message and shared key are required for encryption');
+    }
+
+    const decipheredIV = forge.util.decode64(iv);
+    const key = sharedKey.substring(0, RequestEncryption.keySize);
+    
+    const cipher = forge.cipher.createCipher('AES-CBC', key);
+    cipher.start({ iv:decipheredIV });
+    cipher.update(forge.util.createBuffer(message, 'utf8'));
+    cipher.finish();
+
+    return {
+      encryptedMessage: forge.util.encode64(cipher.output.getBytes()),
+    };
+  }
+
+  static getRandIV(){
+    return forge.util.encode64(forge.random.getBytesSync(16));
+  }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 }
 
 export default RequestEncryption;
