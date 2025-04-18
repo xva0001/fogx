@@ -2,16 +2,15 @@ import { H3Event, defineEventHandler, readBody, createError } from "h3";
 import { z } from "zod";
 import { EncryptReq, EncryptReqShema } from "~/shared/Request/IEncryptReq";
 import { EncryptedRes } from "~/shared/Request/IEncryptRes";
-import InvalidError from "~/server/err/InvalidErr";
 import { calSharedKey } from "~/shared/useKeyFn";
 import RequestEncryption from "~/shared/Request/requestEncrytion";
 import { MongoDBConnector } from "~/server/utils/mongodbConn";
-import { Post, PostSchema, IPost } from "~/server/db_data_schema/PostSchema";
 import { verifyJWT } from "~/server/token_validator/jwt";
 import { verifyToken } from "~/server/token_validator/paseto";
 import { getThreshold } from "~/server/utils/getShareSettings";
+import { Icomment, Comment, CommentSchema } from "~/server/db_data_schema/IComment"; // 修改引入
+import mongoose from "mongoose"; // 引入 mongoose
 
-// Zod schema for the decrypted payload (only tokens needed)
 const DeleteCommentPayloadSchema = z.object({
   jwt: z.string(),
   paseto: z.string(),
@@ -42,7 +41,6 @@ export default defineEventHandler(async (event: H3Event): Promise<EncryptedRes |
         shared = calSharedKey(req.data.pubkey, process.env.ECC_PRIVATE_KEY!);
         if (!shared) throw new Error("Failed to calculate shared key.");
 
-        // DELETE requests might not have a body in standard REST, but here we expect encrypted tokens
         const decrypt = await RequestEncryption.decryptMessage(req.data.encryptedMessage, shared, req.data.iv);
         const basicPayload = JSON.parse(decrypt);
         const parsedDecrypt = DeleteCommentPayloadSchema.extend({ CUUID: z.string().uuid() }).safeParse(basicPayload);
@@ -64,38 +62,48 @@ export default defineEventHandler(async (event: H3Event): Promise<EncryptedRes |
 
         let deleteSuccessCount = 0;
 
-        // Delete comment across databases
+        // 從獨立的 Comment 集合中刪除評論
         await Promise.all(connections.map(async (conn) => {
             try {
-                const PostModel = conn.model<IPost>("post", PostSchema);
-                // Use $pull to remove the comment, ensure user owns it
-                const updateResult = await PostModel.updateOne(
-                    // 匹配 Post ID 和 Comment ID，並確保用戶是所有者
-                    { UUID: postId, comments: { $elemMatch: { id: commentId, userID: userUUID } } },
-                    {
-                        $pull: { comments: { id: commentId, userID: userUUID } }, // 拉出匹配的評論
-                        $inc: { commentCount: -1 }
-                    }
-                );
+                const CommentModel = conn.model<Icomment>("Comment", CommentSchema);
+                
+                // 嘗試將 commentId 轉換為 ObjectId
+                let commentObjectId: mongoose.Types.ObjectId;
+                try {
+                    commentObjectId = new mongoose.Types.ObjectId(commentId);
+                } catch (e) {
+                    console.error(`Invalid commentId format: ${commentId}`);
+                    return; // 跳過此連接的處理
+                }
+                
+                // 刪除評論，並確保只有擁有者可以刪除
+                const deleteResult = await CommentModel.deleteOne({
+                    _id: commentObjectId,
+                    UserUUID: userUUID,
+                    PostUUID: postId
+                });
 
-                if (updateResult.modifiedCount > 0) {
+                if (deleteResult.deletedCount > 0) {
                     deleteSuccessCount++;
-                 } else {
-                     // 檢查是否因為未找到或權限不足導致未刪除
-                     const exists = await PostModel.exists({ UUID: postId, "comments.id": commentId });
-                      if (exists) { // 評論存在但未刪除，說明權限問題
-                        console.error(`Authorization failed: User ${userUUID} tried to delete comment ${commentId}`);
-                    } else { // 評論或帖子不存在
-                        console.warn(`Comment ${commentId} or Post ${postId} not found in DB ${conn.name}.`);
+                } else {
+                    // 檢查評論是否存在但不屬於該用戶
+                    const commentExists = await CommentModel.exists({
+                        _id: commentObjectId,
+                        PostUUID: postId
+                    });
+                    
+                    if (commentExists) {
+                        console.error(`Authorization failed: User ${userUUID} tried to delete comment ${commentId} that they do not own`);
+                    } else {
+                        console.warn(`Comment ${commentId} not found in DB ${conn.name}`);
                     }
-                 }
+                }
             } catch (dbError) {
                 console.error(`Error deleting comment in DB ${conn.name}:`, dbError);
             }
         }));
 
         if (deleteSuccessCount < getThreshold()) {
-            // Consider rollback or specific error message
             throw new Error("Failed to delete comment consistently or authorization failed.");
         }
 
@@ -107,41 +115,25 @@ export default defineEventHandler(async (event: H3Event): Promise<EncryptedRes |
         console.error("!!! Error in [commentId].delete.ts:", error);
         if (shared) {
             try {
-                // 1. 準備包含錯誤訊息的 payload
                 const errorPayload = {
-                    success: false, // 明確標識操作失敗
-                    message: error.message || "An unexpected error occurred while processing the like request." // 使用捕獲到的錯誤訊息或通用訊息
+                    success: false,
+                    message: error.message || "An unexpected error occurred while deleting the comment."
                 };
-    
-                // 2. 加密錯誤 payload
-                const encryptedError = await RequestEncryption.encryptMessage(
-                    JSON.stringify(errorPayload),
-                    shared // 使用之前計算的共享密鑰
-                );
-    
-                // 3. 返回加密後的錯誤回應
-                // 注意：API 本身可能算成功接收並處理了請求（即使內部出錯），
-                // 所以外層 success 仍為 true，真正的結果在解密後的內容中。
-                // 或者，你可以選擇讓整個 API 返回失敗狀態碼，並返回未加密的錯誤（取決於你的錯誤處理策略）
-                // 這裡我們返回加密的錯誤：
+                const encryptedError = await RequestEncryption.encryptMessage(JSON.stringify(errorPayload), shared);
                 return {
-                    success: true, // API 調用本身是成功的（收到了請求並嘗試處理）
+                    success: true,
                     iv: encryptedError.iv,
                     encryptedMessage: encryptedError.encryptedMessage,
                 };
-    
             } catch (encryptionError) {
-                // 如果連加密錯誤訊息都失敗了
                 console.error("Failed to encrypt error response:", encryptionError);
-                // 返回一個通用的、未加密的伺服器錯誤
                 return createError({
                     statusCode: 500,
                     statusMessage: "Server Error",
-                    message: "Failed to process request and encrypt error response." // 提供更具體的內部錯誤訊息
+                    message: "Failed to process request and encrypt error response."
                 });
             }
         } else {
-            // 如果連 shared key 都沒有（理論上在 try 的開頭就會失敗，但作為防禦性程式碼）
             console.error("Shared key is missing, cannot encrypt error response.");
             return createError({
                 statusCode: 500,
@@ -153,3 +145,4 @@ export default defineEventHandler(async (event: H3Event): Promise<EncryptedRes |
         await dbConnector.dbConnsClose();
     }
 });
+

@@ -630,31 +630,41 @@ const openCreatePost = () => {
 };
 
 // Toggle like on a post
+
 const toggleLike = async (post: UserPost) => {
   const originalLiked = post.isLiked;
   const originalLikes = post.likes ?? 0;
 
+  // 樂觀更新 UI
   post.isLiked = !post.isLiked;
   post.likes = originalLikes + (post.isLiked ? 1 : -1);
 
   let shared: string | undefined;
 
-  console.log("Toggling like for post:", post.id, typeof post.id); // 確認 post.id 有效
-  const apiUrl = `/api/post/${post.id}/like`; // 確認 apiUrl 正確
+  console.log("Toggling like for post:", post.id, typeof post.id);
+  const apiUrl = `/api/post/${post.id}/like`;
   console.log("Calling like API:", apiUrl);
+  
   try {
     const jwt = sessionStorage.getItem('jwt');
     const paseto = sessionStorage.getItem('paseto');
-    const CUUID = sessionStorage.getItem('CUUID'); // 獲取 CUUID
+    const CUUID = sessionStorage.getItem('CUUID');
     if (!jwt || !paseto || !CUUID) throw new Error("Missing auth tokens or CUUID.");
 
-    // --- 手動加密流程 ---
+    // --- 加密流程 ---
     const servPubKeyData = await $fetch<{ pubkey: string }>("/api/ECDHpubkey");
     if (!servPubKeyData || !servPubKeyData.pubkey) throw new Error("Failed to get server public key.");
     const pair = genKeyCurve25519();
     shared = calSharedKey(servPubKeyData.pubkey, pair.getPrivate("hex"));
-    // Payload 可能只需要 token，後端根據 post.id 和用戶 CUUID 判斷
-    const payload = { jwt, paseto, CUUID };
+    
+    // 在新結構中，只需要傳遞認證信息和操作類型（可選）
+    const payload = { 
+      jwt, 
+      paseto, 
+      CUUID,
+      action: post.isLiked ? 'like' : 'unlike' // 可選：明確告訴後端是點讚還是取消
+    };
+    
     const encryptedCoreData = await RequestEncryption.encryptMessage(JSON.stringify(payload), shared);
     const requestBody: EncryptReq = {
       iv: encryptedCoreData.iv,
@@ -663,26 +673,23 @@ const toggleLike = async (post: UserPost) => {
     };
     // --- 加密流程結束 ---
 
-    // **假設點讚 API 是 /api/post/{postId}/like (注意是 post 不是 posts)**
-    const response_enc = await $fetch<EncryptedRes>(`/api/post/${post.id}/like`, { // <--- 確認 API 路徑
+    const response_enc = await $fetch<EncryptedRes>(`/api/post/${post.id}/like`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify(requestBody)
     });
-    console.log("Like Fetch Options:", response_enc); // <--- 添加日誌打印選項
 
     if (!response_enc || !response_enc.encryptedMessage || !response_enc.iv) throw new Error("Invalid response from like API.");
     const decryptedJsonString = await RequestEncryption.decryptMessage(response_enc.encryptedMessage, shared, response_enc.iv);
-    const response = JSON.parse(decryptedJsonString) as { success: boolean; likes?: number; isLiked?: boolean; message?: string }; // 期望的回應結構
-    //response_enc = await $fetch<EncryptedRes>(apiUrl, fetchOptions);
+    const response = JSON.parse(decryptedJsonString) as { success: boolean; likes?: number; isLiked?: boolean; message?: string };
     
     if (response && response.success) {
-        // 使用伺服器返回的最終狀態更新
-        post.likes = response.likes ?? post.likes; // 如果後端返回了新的 likes 數
-        post.isLiked = response.isLiked ?? post.isLiked; // 如果後端返回了新的 isLiked 狀態
-        console.log(`Post ${post.id} like status updated by server.`);
+      // 使用伺服器返回的最終狀態更新 UI
+      post.likes = response.likes ?? post.likes;
+      post.isLiked = response.isLiked ?? post.isLiked;
+      console.log(`Post ${post.id} like status updated by server.`);
     } else {
-        throw new Error(response?.message || 'Failed to update like status');
+      throw new Error(response?.message || 'Failed to update like status');
     }
   } catch (err: any) {
     console.error(`Error toggling like for post ${post.id}:`, err);
@@ -999,87 +1006,105 @@ const deleteComment = async (post: UserPost, comment: Comment) => {
 };
 
 // Modified addComment function
+// 添加評論
 const addComment = async (post: UserPost) => {
   const content = post.newComment?.trim();
   if (!content) return;
 
+  const currentCUUID = sessionStorage.getItem('CUUID');
+  if (!currentCUUID) {
+      console.error("Cannot add comment: User CUUID not found in sessionStorage.");
+      alert("Failed to add comment: User information is missing.");
+      return;
+  }
+
+  // 建立臨時評論用於 UI 顯示
   const tempCommentId = `temp-${Date.now()}`;
   const newCommentData: Comment = {
     id: tempCommentId,
-    icon: currentUser.value.icon, // 使用 currentUser 的頭像
-    username: currentUser.value.username,
-    userID: currentUser.value.userID,
+    icon: user.value.icon || currentUser.value.icon,
+    username: user.value.username || currentUser.value.username,
+    userID: currentCUUID, // 使用從 sessionStorage 獲取的 CUUID
     date: new Date(),
     content: content,
     isEditing: false,
     editContent: ''
   };
 
+  // 樂觀更新 UI
   post.comments.unshift(newCommentData);
   post.commentCount++;
   post.newComment = '';
 
   let shared: string | undefined;
 
-  console.log("Adding comment to post:", post.id, typeof post.id); // 確認 post.id 有效
-  const apiUrl = `/api/post/${post.id}/comments`; // 確認 apiUrl 正確
-  console.log("Calling add comment API:", apiUrl);
-
+  console.log("Adding comment to post:", post.id);
   try {
     const jwt = sessionStorage.getItem('jwt');
     const paseto = sessionStorage.getItem('paseto');
     const CUUID = sessionStorage.getItem('CUUID');
     if (!jwt || !paseto || !CUUID) throw new Error("Missing auth tokens or CUUID.");
 
-    // --- 手動加密流程 ---
+    // --- 加密流程 ---
     const servPubKeyData = await $fetch<{ pubkey: string }>("/api/ECDHpubkey");
     if (!servPubKeyData || !servPubKeyData.pubkey) throw new Error("Failed to get server public key.");
     const pair = genKeyCurve25519();
     shared = calSharedKey(servPubKeyData.pubkey, pair.getPrivate("hex"));
-    // Payload 包含 token 和評論內容
-    const payload = { jwt, paseto, CUUID, content: content };
+    
+    // Payload 包含認證信息和評論內容
+    const payload = { 
+      jwt, 
+      paseto, 
+      CUUID, 
+      content,
+      // 可以添加其他可選參數，例如是否公開等
+      isPublic: true 
+    };
+    
     const encryptedCoreData = await RequestEncryption.encryptMessage(JSON.stringify(payload), shared);
-    const requestBody: EncryptReq = { iv: encryptedCoreData.iv, encryptedMessage: encryptedCoreData.encryptedMessage, pubkey: pair.getPublic("hex") };
+    const requestBody: EncryptReq = { 
+      iv: encryptedCoreData.iv,
+      encryptedMessage: encryptedCoreData.encryptedMessage, 
+      pubkey: pair.getPublic("hex") 
+    };
     // --- 加密流程結束 ---
 
-    // **假設新增評論 API 是 /api/post/{postId}/comments**
-    const response_enc = await $fetch<EncryptedRes>(`/api/post/${post.id}/comments`, { // <--- 確認 API 路徑
+    const response_enc = await $fetch<EncryptedRes>(`/api/post/${post.id}/comments`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify(requestBody)
     });
-    console.log("Add Comment Fetch Options:", response_enc);
-    //response_enc = await $fetch<EncryptedRes>(apiUrl, fetchOptions);
 
     if (!response_enc || !response_enc.encryptedMessage || !response_enc.iv) throw new Error("Invalid response from add comment API.");
     const decryptedJsonString = await RequestEncryption.decryptMessage(response_enc.encryptedMessage, shared, response_enc.iv);
-    // 假設後端成功時返回包含新評論數據的結構
     const response = JSON.parse(decryptedJsonString) as { success: boolean; comment?: Comment; message?: string };
 
     if (response && response.success && response.comment) {
-        const savedComment = response.comment;
-        const index = post.comments.findIndex(c => c.id === tempCommentId);
-        if (index !== -1) {
-            savedComment.date = new Date(savedComment.date); // 轉換日期
-            // 確保頭像正確 (如果後端不返回 icon)
-            savedComment.icon = savedComment.icon || currentUser.value.icon;
-            post.comments[index] = savedComment; // 用真實數據替換臨時評論
-            console.log(`Comment added successfully for post ${post.id}:`, savedComment);
-        }
+      // 用伺服器返回的真實評論替換臨時評論
+      const savedComment = response.comment;
+      const index = post.comments.findIndex(c => c.id === tempCommentId);
+      if (index !== -1) {
+        savedComment.date = new Date(savedComment.date); // 確保日期是 Date 對象
+        // 如果伺服器沒有返回頭像，使用當前用戶頭像
+        savedComment.icon = savedComment.icon || user.value.icon || currentUser.value.icon;
+        post.comments[index] = savedComment;
+        console.log(`Comment added successfully for post ${post.id}:`, savedComment);
+      }
     } else {
-        throw new Error(response?.message || 'Failed to add comment or invalid response');
+      throw new Error(response?.message || 'Failed to add comment or invalid response');
     }
   } catch (err: any) {
     console.error(`Error adding comment for post ${post.id}:`, err);
     // 從 UI 中移除臨時評論
     const index = post.comments.findIndex(c => c.id === tempCommentId);
     if (index !== -1) post.comments.splice(index, 1);
-    post.commentCount--; // 恢復計數
+    post.commentCount--;
     post.newComment = content; // 恢復輸入框內容
     const message = err.data?.message || err.message || 'Unknown error';
     alert(`Failed to add comment: ${message}`);
   }
 };
+
 
 //TODO: Note: get post
 
