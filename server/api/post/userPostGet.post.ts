@@ -15,13 +15,14 @@ import { calSharedKey } from "~/shared/useKeyFn";
 import { MongoDBConnector } from "~/server/utils/mongodbConn";
 import { userSchema, IUser } from "~/server/db_data_schema/UserSchema";
 import { IPost } from "~/server/db_data_schema/PostSchema";
-import { Icomment } from "~/server/db_data_schema/IComment";
+import { Icomment, Comment} from "~/server/db_data_schema/IComment";
 import { getThreshold } from "~/server/utils/getShareSettings";
 import { z } from "zod";
 import Identicon from 'identicon.js';
 import pkg from 'js-sha3';
 const { sha3_256, sha3_384 } = pkg;
 import mongoose from 'mongoose';
+import { ILike, Like } from "~/server/db_data_schema/ILike";
 
 
 interface ICommentResponse {
@@ -126,7 +127,12 @@ const UserPostGetSchema = z.object({
               }
   
               let arr_post_resp: IPost_resp[] = []; // 存儲最終返回給前端的 Post 列表
-  
+              const primaryConn = connections[0];
+
+              const LikeModel = primaryConn.model<ILike>('Like', Like.schema);
+              const CommentModel = primaryConn.model<Icomment>('Comment', Comment.schema);
+              const UserModel = primaryConn.model<IUser>('user', userSchema)
+
               for (let index = 0; index < posts.length; index++) {
                   const item = posts[index];
                   try {
@@ -137,11 +143,19 @@ const UserPostGetSchema = z.object({
                           continue; // 跳過無法獲取用戶信息的帖子
                       }
 
-                        const likesArray = (item.likes as string[]) ?? [];
-                        const commentsFromDb = (item.comments as Icomment[]) ?? [];
+                        const likesForPost = await LikeModel.find({ PostUUID: item.UUID }).lean();
+                        const isLiked = likesForPost.some(like => like.UserUUID === userUUID);
+                        const likesCount = likesForPost.length;
+    
+                        // 查詢該帖子的所有評論
+                        const commentsForPost = await CommentModel.find({ 
+                            PostUUID: item.UUID,
+                            isPublic: true 
+                        }).sort({ createdDate: -1 }).lean();
+                        //const commentsFromDb = (item.comments as Icomment[]) ?? [];
 
                         // 轉換評論數據
-                        const commentsForFrontend: ICommentResponse[] = await Promise.all(commentsFromDb.map(async dbComment => {
+                        const commentsForFrontend: ICommentResponse[] = await Promise.all(commentsForPost.map(async dbComment => {
                             // 為每個評論者獲取信息 (如果需要 icon/username 且 CommentSchema 沒存)
                             // 注意：如果評論多，這裡會有很多數據庫查詢，考慮優化
                             let commenterInfo: Pick<IUser, 'username' | 'icon' | 'CUUID'> | null = null;
@@ -188,30 +202,26 @@ const UserPostGetSchema = z.object({
                         }));                      
 
                         const newItem: IPost_resp = {
-
                             id: item.UUID,
-                            // 處理頭像，如果沒有則生成 Identicon
                             icon: postUser.icon
                                 ? (postUser.icon.startsWith('data:image') ? postUser.icon : "data:image/png;base64," + postUser.icon)
                                 : "data:image/png;base64," + new Identicon(sha3_256(postUser.username || postUser.CUUID), 100).toString(),
                             username: postUser.username || `Unknown User (${item.UserUUID.substring(0, 6)})`,
-                            userID: postUser.CUUID, // 使用用戶的 CUUID
-                            date: item.createdDate, // 直接使用 Date 對象或 ISO 字串
-                            // **注意：假設 title 和 content 數組至少有一個元素**
-                            title: item.title?.[0] || "Untitled", // 取第一個標題，或提供默認值
-                            content: item.content?.[0] || "", // 取第一個內容，或空字串
-                            images: item.Image || [], // 直接使用 Image 數組
+                            userID: postUser.CUUID,
+                            date: item.createdDate,
+                            title: item.title?.[0] || "Untitled",
+                            content: item.content?.[0] || "",
+                            images: item.Image || [],
                             tags: item.tags || [],
-                            // **注意：likes, commentCount, isLiked 目前是硬編碼，需要從後端獲取真實數據**
-                            likes: likesArray.length, // 應從數據庫或緩存獲取
-                            commentCount: commentsFromDb.length, // 應從數據庫或緩存獲取
-                            isLiked: likesArray.includes(userUUID), // 應根據當前用戶和 post ID 判斷
-                            showComments: false, // 前端狀態
-                            newComment: '', // 前端狀態
-                            comments: [] // 應從數據庫獲取評論列表
+                            likes: likesCount,
+                            commentCount: commentsForPost.length,
+                            isLiked: isLiked,
+                            showComments: false,
+                            newComment: '',
+                            comments: commentsForFrontend
                         };
 
-                        newItem.comments = commentsForFrontend;
+                        //newItem.comments = commentsForFrontend;
                         // 轉換數據結構為 IPost_resp
 
                         arr_post_resp.push(newItem);
