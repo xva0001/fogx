@@ -9,7 +9,6 @@ import { getUserInfo } from "~/server/dbOperation/getUserInfo"
 import RequestEncryption from "~/shared/Request/requestEncrytion"
 import { isValidImage } from "~/server/utils/checkImage"
 import { GetSharedKeyHandler, IncomingReqEncryptionHandler } from "../EncrytionHandler/IncomingEncryptionHandler"
-import { ZodObject, ZodRawShape } from "zod"
 
 
 
@@ -76,7 +75,7 @@ export const createPrivate = async(event: H3Event)=>{
             iv: decrypted.isPublic ? "" : decrypted.iv!,
             title: decrypted.title,
             content: decrypted.content,
-            Image: decrypted.Image || [],
+            Image: decrypted.Image?[decrypted.Image] : [],
             tags: decrypted.tags || []
         }
 

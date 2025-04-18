@@ -126,7 +126,7 @@ export const StoryInsertionHandler = async (event:H3Event)=>{
             console.log(error);
             
         }
-
+        
         response = {
             id : uuid,
             username : userInfo?.username,

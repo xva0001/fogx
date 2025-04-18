@@ -776,16 +776,17 @@ const handlePrivateStorySubmit = async (storyInputData: any) => {
     
     const pair = genKeyCurve25519();
     const shared = calSharedKey(servPubKeyData.pubkey, pair.getPrivate("hex"));
-    
+    const fixedIV = RequestEncryption.getRandIV()
     const storyData = {
       jwt,
       paseto,
-      image: storyInputData.image,
+      image: await RequestEncryption.encryptMessageWithFixIV(storyInputData.image,storyInputData.password,fixedIV),
       isPublic: false,
-      password: storyInputData.password,
+      iv:fixedIV,
       requestTime: new Date().toISOString()
     };
     
+
     let encrypt: any = await RequestEncryption.encryptMessage(
       JSON.stringify(storyData),
       shared
@@ -876,9 +877,9 @@ const handlePrivatePostSubmit = async (postInputData: any) => {
       jwt,
       paseto,
       isPublic: false,
-      title: await RequestEncryption.encryptMessageWithFixIV(postInputData.title,sha3_256(postInputData.password),fixedIV),
-      content: await RequestEncryption.encryptMessageWithFixIV(postInputData.content,sha3_256(postInputData.password),fixedIV),
-      Image: await RequestEncryption.encryptMessageWithFixIV(JSON.stringify(imageData ? [imageData] : []),sha3_256(postInputData.password),fixedIV),
+      title: (await RequestEncryption.encryptMessageWithFixIV(postInputData.title,sha3_256(postInputData.password),fixedIV)).encryptedMessage,
+      content: (await RequestEncryption.encryptMessageWithFixIV(postInputData.content,sha3_256(postInputData.password),fixedIV)).encryptedMessage,
+      Image: (await RequestEncryption.encryptMessageWithFixIV(JSON.stringify(imageData ? [imageData] : []),sha3_256(postInputData.password),fixedIV)).encryptedMessage,
       tags: postInputData.tags || [],
       requestTime: new Date().toISOString()
     };

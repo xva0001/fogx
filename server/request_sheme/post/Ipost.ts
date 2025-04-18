@@ -51,7 +51,7 @@ export const IpostSchemaVaildatorRequestObjPrivate = z.object(
         iv: z.string(),
         title: z.string(),
         content: z.string(),
-        Image: z.array(z.string()).optional(),
+        Image: z.string().optional(),
         tags: z.array(z.string()).optional(),
         requestTime: z.string().datetime({offset:true})
     }
