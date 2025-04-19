@@ -1,12 +1,28 @@
 <template>
-    <div class="min-h-screen bg-base-100 dark:bg-base-300">
-      <!-- Navigation -->
-      <header class="sticky top-0 z-50 bg-base-200/80 backdrop-blur-sm border-b border-base-content/10">
+  <!-- Use the base-100/base-300 classes on the outermost div -->
+  <div class="min-h-screen" :class="isDarkMode ? 'bg-base-300' : 'bg-base-100'">
+    <!-- Sidebar -->
+    <Sidebar
+      v-model:expanded="sidebarExpanded"
+      :items="navigationItems"
+      :bottom-items="bottomItems"
+      :active-key="currentRoute"
+      @item-click="handleNavigate"
+    />
+
+    <!-- Main Content Wrapper with Dynamic Margin -->
+    <div
+      class="transition-all duration-500 ease-in-out"
+      :style="{ marginLeft: sidebarExpanded ? '16rem' : '4rem' }"
+    >
+      <!-- Header (Now inside the wrapper) -->
+      <header class="sticky top-0 z-40 bg-base-200/80 backdrop-blur-sm border-b border-base-content/10">
+        <!-- Header content remains the same -->
         <div class="flex items-center justify-between px-4 h-14">
           <div class="flex items-center flex-1">
             <template v-if="selectedFriend">
-              <button 
-                class="btn btn-ghost btn-sm btn-circle mr-2" 
+              <button
+                class="btn btn-ghost btn-sm btn-circle mr-2"
                 @click="selectedFriend = null"
               >
                 <ArrowLeft class="w-4 h-4" />
@@ -42,10 +58,10 @@
               </div>
             </template>
           </div>
-  
+
           <div class="flex items-center gap-2">
-            <button 
-              class="btn btn-ghost btn-sm btn-circle" 
+            <button
+              class="btn btn-ghost btn-sm btn-circle"
               @click="toggleTheme"
             >
               <component :is="isDarkMode ? Sun : Moon" class="w-4 h-4" />
@@ -56,14 +72,15 @@
           </div>
         </div>
       </header>
-  
-      <!-- Main Content -->
+
+      <!-- Main Content (Now inside the wrapper) -->
       <main class="relative">
         <!-- Friends List -->
-        <div 
-          v-if="!selectedFriend" 
+        <div
+          v-if="!selectedFriend"
           class="h-[calc(100vh-3.5rem)] overflow-y-auto"
         >
+          <!-- Friends list content remains the same -->
           <div
             v-for="friend in filteredFriends"
             :key="friend.id"
@@ -74,13 +91,13 @@
               <div class="w-10 h-10 rounded-full bg-primary/10">
                 <img :src="friend.avatar" :alt="friend.name" class="rounded-full" />
               </div>
-              <div 
+              <div
                 v-if="friend.online"
                 class="absolute bottom-0 right-0 w-3 h-3 bg-success rounded-full border-2"
                 :class="isDarkMode ? 'border-base-300' : 'border-base-100'"
               ></div>
             </div>
-            
+
             <div class="ml-3 flex-1 min-w-0">
               <div class="flex justify-between">
                 <span class="font-medium text-sm truncate">{{ friend.name }}</span>
@@ -91,33 +108,34 @@
               </p>
             </div>
           </div>
-  
+
           <!-- 固定在右下角的添加按鈕 -->
-          <button 
+          <button
             @click="showAddContact"
             class="btn btn-primary btn-circle fixed right-4 bottom-4 shadow-lg"
           >
             <Plus class="w-6 h-6" />
           </button>
         </div>
-  
-      <!-- Chat Area -->
-            <div v-else class="h-[calc(100vh-3.5rem)] flex flex-col">
-                <div ref="messagesContainer" class="flex-1 overflow-y-auto p-4 space-y-2">
+
+        <!-- Chat Area -->
+        <div v-else class="h-[calc(100vh-3.5rem)] flex flex-col">
+          <!-- Chat area content remains the same -->
+           <div ref="messagesContainer" class="flex-1 overflow-y-auto p-4 space-y-2">
                 <div
                     v-for="(message, index) in messages"
                     :key="index"
                     class="chat"
                     :class="{'chat-end': message.sender === 'me', 'chat-start': message.sender !== 'me'}"
                 >
-                    <div 
+                    <div
                     class="chat-bubble"
                     :class="{'bg-primary text-primary-content': message.sender === 'me'}"
                     >
                       {{ message.content }}
                       <div v-if="message.images" class="mt-2 space-y-2">
-                        <img 
-                          v-for="(img, idx) in message.images" 
+                        <img
+                          v-for="(img, idx) in message.images"
                           :key="idx"
                           :src="img"
                           class="max-w-xs rounded-lg"
@@ -126,7 +144,7 @@
                       </div>
                       <div v-if="message.isCall" class="mt-2 flex items-center gap-2">
                         <span>{{ message.callAccepted ? 'Call accepted' : 'Call request' }}</span>
-                        <button 
+                        <button
                           v-if="message.sender === 'other' && !message.callAccepted"
                           class="btn btn-sm btn-success"
                           @click="acceptCall(message)"
@@ -138,7 +156,7 @@
                     <div class="chat-footer opacity-50 text-xs">{{ message.time }}</div>
                 </div>
                 </div>
-        
+
                 <!-- Input Area -->
                 <div class="p-4 border-t border-base-content/10 bg-base-200/50">
                 <div class="flex items-center space-x-2">
@@ -149,11 +167,11 @@
                       <ul class="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-52">
                         <li>
                           <label>
-                            <input 
-                              type="file" 
-                              accept="image/*" 
-                              multiple 
-                              class="hidden" 
+                            <input
+                              type="file"
+                              accept="image/*"
+                              multiple
+                              class="hidden"
                               @change="handleImageUpload"
                             />
                             Upload Images
@@ -170,7 +188,7 @@
                     placeholder="Type a message..."
                     class="input input-sm input-bordered flex-1 bg-base-100/50"
                     />
-                    <button 
+                    <button
                     class="btn btn-primary btn-sm btn-circle"
                     @click="sendMessage"
                     :disabled="!newMessage.trim()"
@@ -179,9 +197,10 @@
                     </button>
                 </div>
                 </div>
-            </div>
-        </main>
+        </div>
+      </main>
     </div>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -200,6 +219,19 @@ import {
 import { Peer, type DataConnection } from 'peerjs'
 import { usePeerConnection, type PeerConnectionOptions } from '~/composables/usePeerConnection'
 import { useMessage } from '~/composables/useMessage'
+import Sidebar from '~/components/Sidebar.vue';
+import type { MenuItem } from '~/composables/IMenu';
+import {
+  Home,
+  Search as SearchIconSidebar,
+  Bell,
+  MessageCircle,
+  Bookmark,
+  Settings as SettingsIconSidebar,
+  User,
+  LogOut,
+} from 'lucide-vue-next'
+
 
 interface Friend {
   id: number
@@ -224,25 +256,42 @@ interface Conversations {
   [key: number]: Message[];
 }
 
-/*
-const dashboardMenuItems = [
-  { key: 'home', icon: 'Home', label: 'Home', route: '/' },
-  { key: 'users', icon: 'Users', label: 'Users', route: '/users' },
-  { key: 'messages', icon: 'MessageSquare', label: 'Messages', route: '/messages' },
-  { key: 'notifications', icon: 'Bell', label: 'Notifications', route: '/notifications' },
-  { key: 'analytics', icon: 'BarChart2', label: 'Analytics', route: '/analytics' }
-]
+const sidebarExpanded = ref(false);
+const currentRoute = ref('messages');
 
-const bottomItems = [
-  { key: 'settings', icon: 'Settings', label: 'Settings', route: '/settings' },
-  { key: 'logout', icon: 'LogOut', label: 'Logout' }
-]
+const navigationItems = computed<MenuItem[]>(() => [
+  { key: 'home', icon: Home, label: 'Home', route: '/' },
+  { key: 'explore', icon: SearchIconSidebar, label: 'Explore', route: '/explore' },
+  { key: 'messages', icon: MessageCircle, label: 'Messages', route: '/messages' }, // Highlight messages
+  { key: 'notifications', icon: Bell, label: 'Notifications', route: '/notifications' },
+  { key: 'bookmarks', icon: Bookmark, label: 'Bookmarks', route: '/bookmarks' },
+  // Add other relevant items like Private Content if needed
+  { key: 'private', icon: SearchIconSidebar, label: 'Private Content', route: '/Private' }
+]);
 
-const themeClasses = computed(() => ({
-  'bg-base-300': isDarkMode.value,
-  'bg-base-100': !isDarkMode.value
-}))
-*/
+const bottomItems = computed<MenuItem[]>(() => [
+  { key: 'settings', icon: SettingsIconSidebar, label: 'Settings', route: '/settings' },
+  { key: 'profile', icon: User, label: 'Profile', route: '/profile' },
+  { key: 'logout', icon: LogOut, label: 'Logout' }
+]);
+
+const handleNavigate = (item: MenuItem) => {
+  if (item.key === 'logout') {
+    logout();
+  }
+  currentRoute.value = item.key;
+  if (item.route) {
+    navigateTo(item.route);
+  }
+  console.log('Navigate to:', item.route || item.key);
+};
+
+const logout = async () => {
+  sessionStorage.removeItem('jwt');
+  sessionStorage.removeItem('paseto');
+  sessionStorage.removeItem('CUUID');
+  navigateTo('/login');
+};
 
 // State
 const isDarkMode = ref(false)
@@ -703,7 +752,7 @@ onMounted(() => {
 /* 確保固定定位的按鈕始終顯示在視窗右下角 */
 .fixed {
   position: fixed;
-  z-index: 50;
+  z-index: 50; /* Ensure it's above other content but below modals/sidebar if needed */
 }
 /* 刪除循環引用的transition-all */
 .smooth-transition {
