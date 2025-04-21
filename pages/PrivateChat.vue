@@ -221,16 +221,6 @@ import { usePeerConnection, type PeerConnectionOptions } from '~/composables/use
 import { useMessage } from '~/composables/useMessage'
 import Sidebar from '~/components/Sidebar.vue';
 import { useNavigation } from '~/composables/useNavigation';
-import {
-  Home,
-  Search as SearchIconSidebar,
-  Bell,
-  MessageCircle,
-  Bookmark,
-  Settings as SettingsIconSidebar,
-  User,
-  LogOut,
-} from 'lucide-vue-next'
 
 interface Friend {
   id: number
