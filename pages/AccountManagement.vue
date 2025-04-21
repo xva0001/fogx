@@ -25,7 +25,7 @@
 
     <!-- Sidebar -->
     <Sidebar v-model:expanded="sidebarExpanded" :items="navigationItems" :bottom-items="bottomItems"
-      :active-key="currentRoute" @item-click="handleNavigate" />
+      :active-key="currentRouteKey" @item-click="handleNavigate" />
 
     <!-- Main content area -->
     <div class="transition-all duration-500" :style="{
@@ -486,94 +486,38 @@ import {
   Bell,
   Sun,
   Moon,
-  Home,
-  Search,
-  MessageCircle,
-  Bookmark,
-  Settings,
-  User,
-  LogOut,
   Shield,
   Eye,
-  Smartphone,
-  Monitor
 } from 'lucide-vue-next';
-import type { MenuItem } from '~/composables/IMenu';
+
 import { calSharedKey, genKeyCurve25519 } from '~/shared/useKeyFn';
 import RequestEncryption from '~/shared/Request/requestEncrytion';
 import Identicon from "identicon.js"
 import { sha3_256, sha3_384 } from 'js-sha3';
-
-import { twoFAQRGenerator } from '~/composables/2faQRimg'; // <--- 導入 QR 生成器
-import { SecFATool } from '~/shared/2FATool'; // <--- 導入 2FA 工具
-import type { EncryptedRes } from '~/shared/Request/IEncryptRes'; // <--- 導入類型
-import type { EncryptReq } from '~/shared/Request/IEncryptReq'; // <--- 導入類型
+import { twoFAQRGenerator } from '~/composables/2faQRimg';
+import { SecFATool } from '~/shared/2FATool';
+import type { EncryptedRes } from '~/shared/Request/IEncryptRes';
+import type { EncryptReq } from '~/shared/Request/IEncryptReq';
+import Sidebar from '~/components/Sidebar.vue';
 
 type FetchMethod = "GET" | "HEAD" | "PATCH" | "POST" | "PUT" | "DELETE" | "CONNECT" | "OPTIONS" | "TRACE";
 
 const DarkMode = useThemeStore();
 const isDark = ref(DarkMode.isDark);
-const sidebarExpanded = ref(true);
-const currentRoute = ref('profile');
 const confirmAccountDeletion = ref(false);
 const deleteAccountPassword = ref('');
 const showCropper = ref(false);
 const avatarToCrop = ref('');
 const cropper = ref<InstanceType<typeof Cropper>>();
 
-// Navigation menu items
-const navigationItems = computed<MenuItem[]>(() => [
-  {
-    key: 'home',
-    icon: Home,
-    label: 'Home',
-    route: '/'
-  },
-  {
-    key: 'explore',
-    icon: Search,
-    label: 'Explore',
-    route: '/explore'
-  },
-  {
-    key: 'messages',
-    icon: MessageCircle,
-    label: 'Messages',
-    route: '/messages'
-  },
-  {
-    key: 'notifications',
-    icon: Bell,
-    label: 'Notifications',
-    route: '/notifications'
-  },
-  {
-    key: 'bookmarks',
-    icon: Bookmark,
-    label: 'Bookmarks',
-    route: '/bookmarks'
-  }
-]);
-
-const bottomItems = computed<MenuItem[]>(() => [
-  {
-    key: 'settings',
-    icon: Settings,
-    label: 'Settings',
-    route: '/settings'
-  },
-  {
-    key: 'profile',
-    icon: User,
-    label: 'Profile',
-    route: '/profile'
-  },
-  {
-    key: 'logout',
-    icon: LogOut,
-    label: 'Logout'
-  }
-]);
+const {
+  sidebarExpanded,
+  currentRouteKey,
+  navigationItems,
+  bottomItems,
+  handleNavigate,
+  setActiveRoute
+} = useNavigation();
 
 // User data
 const user = ref({
@@ -683,18 +627,6 @@ const canChangePassword = computed(() => {
     passwordForm.value.confirm &&
     passwordForm.value.new === passwordForm.value.confirm;
 });
-
-// Handle navigation
-const handleNavigate = (item: MenuItem) => {
-  if (item.key === 'logout') {
-    // Handle logout logic
-    logout();
-    return;
-  }
-  currentRoute.value = item.key;
-  // Handle navigation
-  console.log('Navigating to:', item.route);
-};
 
 // Theme toggle
 const toggleTheme = () => {
