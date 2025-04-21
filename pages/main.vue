@@ -2,7 +2,7 @@
   <div class="min-h-screen relative" :class="isDark ? 'bg-dark-900' : 'bg-gray-50'">
     <!-- Sidebar -->
     <Sidebar v-model:expanded="sidebarExpanded" :items="navigationItems" :bottom-items="bottomItems"
-      :active-key="currentRoute" @item-click="handleNavigate" />
+      :active-key="currentRouteKey" @item-click="handleNavigate" />
 
     <!-- Main Content Area -->
     <div class="transition-all duration-500" :style="{
@@ -261,27 +261,18 @@ import StoryViewer from '~/components/StoryViewer.vue';
 import CreateModal from '~/components/CreateModal.vue';
 import ShareModal from '~/components/ShareModal.vue';
 
-import ImageBox from '~/components/ImageBox.vue'; // Import ImageBox
-import Sidebar from '~/components/Sidebar.vue'; // Import Sidebar
-import DarkModeBtn from '~/components/DarkModeBtn.vue'; // Import DarkModeBtn
+import ImageBox from '~/components/ImageBox.vue';
+import Sidebar from '~/components/Sidebar.vue';
+import DarkModeBtn from '~/components/DarkModeBtn.vue';
 import {
-  Home,
-  Search,
   Bell,
-  MessageCircle,
-  Bookmark,
-  Settings,
-  User,
-  LogOut,
   Plus as PlusIcon,
   Sun,
   Moon,
-  //X,
   Loader2
 } from 'lucide-vue-next'
-import type { MenuItem } from '~/composables/IMenu';
-import type { IStory } from '~/composables/Istory';
 
+import type { IStory } from '~/composables/Istory';
 import RequestEncryption from '~/shared/Request/requestEncrytion';
 import { calSharedKey, genKeyCurve25519 } from '~/shared/useKeyFn';
 import type { EncryptedRes } from '~/shared/Request/IEncryptRes';
@@ -292,78 +283,22 @@ import { sha3_256 } from 'js-sha3';
 
 const DarkMode = useThemeStore();
 const isDark = ref(DarkMode.isDark);
-const sidebarExpanded = ref(false)
-const currentRoute = ref('home')
 
-// Navigation items
-const navigationItems = computed<MenuItem[]>(() => [
-  {
-    key: 'home',
-    icon: Home,
-    label: 'Home',
-    route: '/'
-  },
-  {
-    key: 'explore',
-    icon: Search,
-    label: 'Explore',
-    route: '/explore'
-  },
-  {
-    key: 'messages',
-    icon: MessageCircle,
-    label: 'Messages',
-    route: '/messages'
-  },
-  {
-    key: 'notifications',
-    icon: Bell,
-    label: 'Notifications',
-    route: '/notifications'
-  },
-  {
-    key: 'bookmarks',
-    icon: Bookmark,
-    label: 'Bookmarks',
-    route: '/bookmarks'
-  }
-])
+import { useNavigation } from '~/composables/useNavigation';
 
-const bottomItems = computed<MenuItem[]>(() => [
-  {
-    key: 'settings',
-    icon: Settings,
-    label: 'Settings',
-    route: '/settings'
-  },
-  {
-    key: 'profile',
-    icon: User,
-    label: 'Profile',
-    route: '/profile'
-  },
-  {
-    key: 'logout',
-    icon: LogOut,
-    label: 'Logout'
-  }
-])
-
-const handleNavigate = (item: MenuItem) => {
-  if (item.key === 'logout') {
-    // Handle logout
-    logout()
-  }
-  currentRoute.value = item.key
-  // Handle navigation
-  console.log('Navigate to:', item.route)
-}
+const {
+  sidebarExpanded,
+  currentRouteKey,
+  navigationItems,
+  bottomItems,
+  handleNavigate,
+  setActiveRoute
+} = useNavigation();
 
 const goAccoutManagement = () => {
   navigateTo({ path: "/AccountManagement" })
 }
 
-// 主題切換函數
 const toggleTheme = () => {
   if (process.client) {
     isDark.value = !isDark.value
@@ -371,6 +306,7 @@ const toggleTheme = () => {
     localStorage.setItem('theme', isDark.value ? 'dark' : 'light')
   }
 }
+
 // Fetch user data
 const fetchUserData = async () => {
   let shared: string | undefined;
@@ -419,6 +355,9 @@ const fetchUserData = async () => {
 
 
 onMounted(() => {
+
+  setActiveRoute('home');
+
   // 1. 初始化主題
   if (import.meta.client) {
     const savedTheme = localStorage.getItem('theme') || 'light';

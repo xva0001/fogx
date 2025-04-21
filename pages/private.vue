@@ -2,7 +2,7 @@
   <div class="min-h-screen relative" :class="isDark ? 'bg-dark-900' : 'bg-gray-50'">
     <!-- Sidebar -->
     <Sidebar v-model:expanded="sidebarExpanded" :items="navigationItems" :bottom-items="bottomItems"
-      :active-key="currentRoute" @item-click="handleNavigate" />
+      :active-key="currentRouteKey" @item-click="handleNavigate" />
 
     <!-- Main Content Area -->
     <div class="transition-all duration-500" :style="{
@@ -241,31 +241,23 @@ import ShareModal from '~/components/ShareModal.vue';
 import ImageBox from '~/components/ImageBox.vue';
 import Sidebar from '~/components/Sidebar.vue';
 import {
-  Home,
-  Search,
   Bell,
-  MessageCircle,
-  Bookmark,
-  Settings,
-  User,
-  LogOut,
   Plus as PlusIcon,
   Sun,
   Moon,
   X,
   Loader2
 } from 'lucide-vue-next';
-import type { MenuItem } from '~/composables/IMenu';
-import type { IStory } from '~/composables/Istory';
 
+import type { IStory } from '~/composables/Istory';
 import RequestEncryption from '~/shared/Request/requestEncrytion';
 import { calSharedKey, genKeyCurve25519 } from '~/shared/useKeyFn';
 import type { EncryptedRes } from '~/shared/Request/IEncryptRes';
 import type { EncryptReq } from '~/shared/Request/IEncryptReq';
 import Identicon from 'identicon.js';
 import { sha3_256 } from 'js-sha3';
+import { useNavigation } from '~/composables/useNavigation';
 
-// 添加缺失的接口定义
 interface UserPost {
   id: number | string;
   icon: string;
@@ -286,8 +278,15 @@ interface UserPost {
 
 const DarkMode = useThemeStore();
 const isDark = ref(DarkMode.isDark);
-const sidebarExpanded = ref(false);
-const currentRoute = ref('private');
+
+const {
+  sidebarExpanded,
+  currentRouteKey,
+  navigationItems,
+  bottomItems,
+  handleNavigate,
+  setActiveRoute
+} = useNavigation();
 
 // 私人内容相关的状态
 const searchParams = ref({
@@ -324,82 +323,11 @@ const isFormValid = computed(() => {
 // User data
 const user = ref({ icon: '', username: 'User', email: '', twoFactorEnabled: true });
 
-// Navigation items
-const navigationItems = computed<MenuItem[]>(() => [
-  {
-    key: 'home',
-    icon: Home,
-    label: 'Home',
-    route: '/'
-  },
-  {
-    key: 'explore',
-    icon: Search,
-    label: 'Explore',
-    route: '/explore'
-  },
-  {
-    key: 'messages',
-    icon: MessageCircle,
-    label: 'Messages',
-    route: '/messages'
-  },
-  {
-    key: 'notifications',
-    icon: Bell,
-    label: 'Notifications',
-    route: '/notifications'
-  },
-  {
-    key: 'bookmarks',
-    icon: Bookmark,
-    label: 'Bookmarks',
-    route: '/bookmarks'
-  },
-  {
-    key: 'private',
-    icon: Search,
-    label: 'Private Content',
-    route: '/Private'
-  }
-]);
-
-const bottomItems = computed<MenuItem[]>(() => [
-  {
-    key: 'settings',
-    icon: Settings,
-    label: 'Settings',
-    route: '/settings'
-  },
-  {
-    key: 'profile',
-    icon: User,
-    label: 'Profile',
-    route: '/profile'
-  },
-  {
-    key: 'logout',
-    icon: LogOut,
-    label: 'Logout'
-  }
-]);
-
 // 常见变量
 const isLoading = ref(false);
 const error = ref<string | null>(null);
 const stories = ref<IStory[]>([]);
 const displayedPosts = ref<any[]>([]);
-
-// Event handlers
-const handleNavigate = (item: MenuItem) => {
-  if (item.key === 'logout') {
-    logout();
-  }
-  currentRoute.value = item.key;
-  if (item.route) {
-    navigateTo(item.route);
-  }
-};
 
 const goAccoutManagement = () => {
   navigateTo({ path: "/AccountManagement" });

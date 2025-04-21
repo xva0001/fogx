@@ -6,7 +6,7 @@
       v-model:expanded="sidebarExpanded"
       :items="navigationItems"
       :bottom-items="bottomItems"
-      :active-key="currentRoute"
+      :active-key="currentRouteKey"
       @item-click="handleNavigate"
     />
 
@@ -220,18 +220,7 @@ import { Peer, type DataConnection } from 'peerjs'
 import { usePeerConnection, type PeerConnectionOptions } from '~/composables/usePeerConnection'
 import { useMessage } from '~/composables/useMessage'
 import Sidebar from '~/components/Sidebar.vue';
-import type { MenuItem } from '~/composables/IMenu';
-import {
-  Home,
-  Search as SearchIconSidebar,
-  Bell,
-  MessageCircle,
-  Bookmark,
-  Settings as SettingsIconSidebar,
-  User,
-  LogOut,
-} from 'lucide-vue-next'
-
+import { useNavigation } from '~/composables/useNavigation';
 
 interface Friend {
   id: number
@@ -256,35 +245,14 @@ interface Conversations {
   [key: number]: Message[];
 }
 
-const sidebarExpanded = ref(false);
-const currentRoute = ref('messages');
-
-const navigationItems = computed<MenuItem[]>(() => [
-  { key: 'home', icon: Home, label: 'Home', route: '/' },
-  { key: 'explore', icon: SearchIconSidebar, label: 'Explore', route: '/explore' },
-  { key: 'messages', icon: MessageCircle, label: 'Messages', route: '/messages' }, // Highlight messages
-  { key: 'notifications', icon: Bell, label: 'Notifications', route: '/notifications' },
-  { key: 'bookmarks', icon: Bookmark, label: 'Bookmarks', route: '/bookmarks' },
-  // Add other relevant items like Private Content if needed
-  { key: 'private', icon: SearchIconSidebar, label: 'Private Content', route: '/Private' }
-]);
-
-const bottomItems = computed<MenuItem[]>(() => [
-  { key: 'settings', icon: SettingsIconSidebar, label: 'Settings', route: '/settings' },
-  { key: 'profile', icon: User, label: 'Profile', route: '/profile' },
-  { key: 'logout', icon: LogOut, label: 'Logout' }
-]);
-
-const handleNavigate = (item: MenuItem) => {
-  if (item.key === 'logout') {
-    logout();
-  }
-  currentRoute.value = item.key;
-  if (item.route) {
-    navigateTo(item.route);
-  }
-  console.log('Navigate to:', item.route || item.key);
-};
+const {
+  sidebarExpanded,
+  currentRouteKey,
+  navigationItems,
+  bottomItems,
+  handleNavigate,
+  setActiveRoute
+} = useNavigation();
 
 const logout = async () => {
   sessionStorage.removeItem('jwt');
