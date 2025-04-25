@@ -242,8 +242,6 @@ const updateFriendConnectionStatus = (friendArr:Ref<Friend[]>)=>{
     const friend = friendArr.value[index];
     usePeer.connect(friend.id).then(conn => {
       friend.online = true
-      conn.on("close",()=>{updateFriendConnectionStatus(friendArr)})
-      conn.on("iceStateChanged",()=>{updateFriendConnectionStatus(friendArr)})
     }).catch(() => {
       console.log("friend " + friend.name + " (" + friend.id + ") is offline")
       friend.online = false

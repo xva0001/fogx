@@ -55,6 +55,11 @@ export const usePeerConnection = async() => {
         })
 
         instance.on('connection', (conn) => {
+
+          if (connections.value[conn.peer]) {
+            connections.value[conn.peer].close()
+          }
+
           connections.value[conn.peer] = conn
           setupConnectionHandlers(conn)
         })
