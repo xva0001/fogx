@@ -43,7 +43,7 @@ export const usePeerConnection = async() => {
         instance.on('open', (id) => {
           currentPeerId.value = id
           console.log(id);
-          peer.value = instance
+          peer.value = instance //give value for peer *************************************************
           resolve(instance)
         })
 
@@ -83,9 +83,9 @@ export const usePeerConnection = async() => {
         if (receiveMsg.type == "message") {
           const convArr = conversations.value
           for (let index = 0; index < convArr.length; index++) {
-            const citem = convArr[index];
-            if (citem.friendId==conn.connectionId) {
-              citem.listOfMessage.push(receiveMsg)
+            const conversationItem = convArr[index];
+            if (conversationItem.friendId==conn.connectionId) {
+              conversationItem.listOfMessage.push(receiveMsg)
               break
             }
           }

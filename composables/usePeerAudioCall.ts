@@ -16,6 +16,9 @@ export const usePeerAudioCall = (peer: Ref<Peer | null>,) => {
       call.on('stream', stream => {
         remoteStream.value = stream
       })
+      call.on("error",(err)=>{
+        console.log(err);
+      })
     }
   
     const answer = () => {
@@ -28,6 +31,16 @@ export const usePeerAudioCall = (peer: Ref<Peer | null>,) => {
         })
       })
     }
+    const reject = () =>{
+      if (!peer.value) return
+      peer.value.on('call', call => {
+        call.close()
+        //callRef.value = call
+        // call.on('stream', stream => {
+        //   remoteStream.value = stream
+        // })
+      })
+    } 
   
     const stop = () => {
       localStream.value?.getTracks().forEach(t => t.stop())
@@ -40,6 +53,7 @@ export const usePeerAudioCall = (peer: Ref<Peer | null>,) => {
       remoteStream,
       startAudio,
       call,
+      reject,
       answer,
       stop
     }

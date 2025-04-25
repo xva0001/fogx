@@ -96,8 +96,7 @@ const filteredFriends = computed(() => {
 const showAddFriendModal = ref(false);
 
 const startChat = (friend: Friend) => {
-  // TODO: Implement chat initiation
-  console.log('Starting chat with', friend.name);
+  navigateTo(`/pm/${friend.id}`);
 };
 
 const handleAddFriend = (friendId: string) => {
@@ -246,7 +245,6 @@ const updateFriendConnectionStatus = (friendArr:Ref<Friend[]>)=>{
       console.log("friend " + friend.name + " (" + friend.id + ") is offline")
       friend.online = false
     });
-
   }
 }
 
@@ -259,7 +257,7 @@ onMounted(() => {
   // Update friend connection status every 30 seconds
   connectionStatusTimer.value = setInterval(() => {
     updateFriendConnectionStatus(friendList)
-  }, 15000)
+  }, 5000)
 })
 
 onUnmounted(() => {
