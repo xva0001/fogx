@@ -26,7 +26,9 @@
 
     <!-- Messages Area -->
     <div class="pb-20 pt-4 px-4 space-y-4">
-      <div v-for="(message, index) in msgList" :key="index" 
+      <div v-for="(message, index) in msgList.flatMap(conv => 
+        conv.friendId === friend?.id ? conv.listOfMessage : []
+      )" :key="index" 
            class="flex" :class="message.sender === currentUserID ? 'justify-end' : 'justify-start'">
         <div class="max-w-xs md:max-w-md lg:max-w-lg rounded-lg p-3" 
              :class="message.sender === currentUserID 
@@ -125,27 +127,7 @@ const usePeer = await usePeerConnection()
 const currentUserID = ref('')
 //friend id
 const friend = ref<Friend | null>(null)
-  const msgList = computed<Message[]>(()=>{
-
-    if (friend.value==null || !friend) {
-      console.log("null in Friend computed");
-      
-      return [];
-    }
-
-  for (let index = 0; index < usePeer.conversations.value.length; index++) {
-    const element = usePeer.conversations.value[index];
-
-    if (element.friendId == friend.value.id) {
-      
-      return element.listOfMessage
-
-    }
-  }
-  return []
-
-
-});
+const msgList = usePeer.conversations
 const route = useRoute()
 
 const useCallPeer = usePeerAudioCall(usePeer.peer as Ref<Peer | null>)
