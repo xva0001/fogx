@@ -96,7 +96,7 @@ const filteredFriends = computed(() => {
 const showAddFriendModal = ref(false);
 
 const startChat = (friend: Friend) => {
-  navigateTo(`/pm/${friend.id}`);
+  navigateTo({path:`/pm/${friend.id}`,});
 };
 
 const handleAddFriend = (friendId: string) => {

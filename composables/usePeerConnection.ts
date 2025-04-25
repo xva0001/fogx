@@ -86,6 +86,7 @@ export const usePeerConnection = async() => {
             const conversationItem = convArr[index];
             if (conversationItem.friendId==conn.connectionId) {
               conversationItem.listOfMessage.push(receiveMsg)
+              conversations.value[index] = conversationItem
               break
             }
           }

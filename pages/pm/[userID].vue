@@ -10,14 +10,14 @@
     <div class="sticky top-0 z-10 p-4 border-b" :class="isDark ? 'bg-dark-800 border-gray-700' : 'bg-white border-gray-200'">
       <div class="flex items-center space-x-3">
         <div class="w-10 h-10 rounded-full overflow-hidden">
-          <img :src="friend?.icon" alt="Friend avatar" class="w-full h-full object-cover">
+          <img :src="friend ? friend.icon : ''" alt="Friend avatar" class="w-full h-full object-cover">
         </div>
         <div>
-          <h2 class="font-semibold" :class="isDark ? 'text-white' : 'text-gray-900'">{{ friend?.name }}</h2>
+          <h2 class="font-semibold" :class="isDark ? 'text-white' : 'text-gray-900'">{{ friend ? friend.name : '' }}</h2>
           <div class="flex items-center">
-            <span class="w-2 h-2 rounded-full mr-1" :class="friend?.online ? 'bg-green-500' : 'bg-gray-500'"></span>
+            <span class="w-2 h-2 rounded-full mr-1" :class="friend && friend.online ? 'bg-green-500' : 'bg-gray-500'"></span>
             <span class="text-xs" :class="isDark ? 'text-gray-400' : 'text-gray-500'">
-              {{ friend?.online ? 'Online' : 'Offline' }}
+              {{ friend && friend.online ? 'Online' : 'Offline' }}
             </span>
           </div>
         </div>
@@ -63,10 +63,11 @@
     </div>
 
     <!-- Input Area -->
-    <div class="fixed bottom-0 left-0 right-0 p-4" 
-         :class="isDark ? 'bg-dark-800' : 'bg-white'">
+    <div class="fixed bottom-0 p-4 transition-all duration-500"
+         :class="isDark ? 'bg-dark-800' : 'bg-white'"
+         :style="{left: sidebarExpanded ? '16rem' : '4rem', right: 0}">
       <div class="flex items-center space-x-2">
-        <input v-model="inputtedTextImageMsg?.content" 
+        <input v-if="inputtedTextImageMsg" v-model="inputtedTextImageMsg.content" 
                @keyup.enter="sendMsg"
                class="flex-1 px-4 py-2 rounded-full border focus:outline-none focus:ring-2 focus:ring-blue-500" 
                :class="isDark ? 'bg-dark-700 border-gray-600 text-white' : 'bg-white border-gray-300'"
@@ -105,7 +106,7 @@ import { ref } from 'vue';
 
 const DarkMode = useThemeStore();
 const isDark = ref(DarkMode.isDark);
-const msgList = ref<Message[]>([]);
+
 
 const {
   sidebarExpanded,
@@ -124,7 +125,27 @@ const usePeer = await usePeerConnection()
 const currentUserID = ref('')
 //friend id
 const friend = ref<Friend | null>(null)
+  const msgList = computed<Message[]>(()=>{
 
+    if (friend.value==null || !friend) {
+      console.log("null in Friend computed");
+      
+      return [];
+    }
+
+  for (let index = 0; index < usePeer.conversations.value.length; index++) {
+    const element = usePeer.conversations.value[index];
+
+    if (element.friendId == friend.value.id) {
+      
+      return element.listOfMessage
+
+    }
+  }
+  return []
+
+
+});
 const route = useRoute()
 
 const useCallPeer = usePeerAudioCall(usePeer.peer as Ref<Peer | null>)
@@ -219,15 +240,24 @@ const initPeerConnection = async () => {
     //connect depandency
     await usePeer.init({ jwt: jwt, paseto: paseto, CUUID: CUUID })
 
+    //handle ui 
+
+    
+    
+
 }
 
 
 const sendMsg = ()=>{
     if (!friend.value || !inputtedTextImageMsg.value) {
+      console.log("no instance");
+      
         return;
     }
 
     if (inputtedTextImageMsg.value.content.trim()=="" && inputtedTextImageMsg.value.images?.length == 0 ) {
+        console.log("nothing here");
+        
         return
     }
     let sent = false
@@ -235,6 +265,7 @@ const sendMsg = ()=>{
         usePeer.send(friend.value.id,JSON.stringify(inputtedTextImageMsg.value))  
         sent = true  
     } catch (e) {
+
         console.log(e);
     }
     //show msg sent
@@ -262,7 +293,8 @@ const updateFriendConnectionStatus = (friendrf: Ref<Friend | null>) => {
     if (!friend) return;
     
     usePeer.connect(friend.id).then(conn => {
-        friend.online = true
+        friend.online = true       
+
     }).catch(() => {
         console.log("friend " + friend.name + " (" + friend.id + ") is offline")
         friend.online = false
