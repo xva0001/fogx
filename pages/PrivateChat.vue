@@ -261,7 +261,7 @@ onMounted(() => {
   // Update friend connection status every 30 seconds
   connectionStatusTimer.value = setInterval(() => {
     updateFriendConnectionStatus(friendList)
-  }, 30000)
+  }, 15000)
 })
 
 onUnmounted(() => {
