@@ -253,9 +253,21 @@ const updateFriendConnectionStatus = (friendArr:Ref<Friend[]>)=>{
 }
 
 
+const connectionStatusTimer = ref<NodeJS.Timeout>()
+
 onMounted(() => {
   initFriendListAndGetData()
   initPeerConnection()
+  // Update friend connection status every 30 seconds
+  connectionStatusTimer.value = setInterval(() => {
+    updateFriendConnectionStatus(friendList)
+  }, 30000)
+})
+
+onUnmounted(() => {
+  if (connectionStatusTimer.value) {
+    clearInterval(connectionStatusTimer.value)
+  }
 })
 
 </script>
