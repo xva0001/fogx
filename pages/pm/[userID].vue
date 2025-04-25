@@ -244,7 +244,7 @@ const sendMsg = ()=>{
     }
     let sent = false
     try {
-        usePeer.send(friend.value.id,(inputtedTextImageMsg.value))  
+        usePeer.send(friend.value.id,({...inputtedTextImageMsg.value,time:new Date().toISOString()}))  
         sent = true  
     } catch (e) {
 

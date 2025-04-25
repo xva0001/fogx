@@ -94,7 +94,7 @@ export const usePeerConnection = async() => {
           // }
           const conv :Conversations = {
             friendId: receiveMsg.sender as string, // Ensure friendId is typed
-            listOfMessage : receiveMsg
+            listOfMessage : [receiveMsg]
           }
 
           if (conversations.value.length==0) {
