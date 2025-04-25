@@ -1,6 +1,7 @@
 import { Peer, type DataConnection } from 'peerjs'
 import { ref } from 'vue'
 import { usePeerServer } from './usePeerServer'
+import type { Conversations } from './PrivateChatObjectInterface'
 
 export interface PeerConnectionOptions {
   jwt: string
@@ -13,9 +14,15 @@ export const usePeerConnection = async() => {
   const connections = ref<Record<string, DataConnection>>({})
   const currentPeerId = ref('')
   const error = ref<Error | null>(null)
+  const conversations  = ref<Conversations[]>([])
   
   const { getPeerConnectionDetails } = await usePeerServer()
 
+  /**
+   * 
+   * @param options - peer option
+   * @returns Peer
+   */
   const init = async (options: PeerConnectionOptions) => {
     try {
       const { userUUID, orgUrlPath } = await getPeerConnectionDetails(
@@ -24,6 +31,8 @@ export const usePeerConnection = async() => {
       )
 
       return new Promise<Peer>((resolve, reject) => {
+        console.log(orgUrlPath);
+        
         const instance = new Peer(userUUID, {
           host: orgUrlPath.host,
           port: orgUrlPath.port,
@@ -33,19 +42,23 @@ export const usePeerConnection = async() => {
 
         instance.on('open', (id) => {
           currentPeerId.value = id
+          console.log(id);
           peer.value = instance
           resolve(instance)
         })
 
         instance.on('error', (err) => {
           error.value = err
+          console.log(err);
           reject(err)
+
         })
 
         instance.on('connection', (conn) => {
           connections.value[conn.peer] = conn
           setupConnectionHandlers(conn)
         })
+        
       })
     } catch (err) {
       error.value = err as Error
@@ -53,14 +66,30 @@ export const usePeerConnection = async() => {
     }
   }
 
+  /**
+   * 
+   * @param conn set a listener
+   */
   const setupConnectionHandlers = (conn: DataConnection) => {
     conn.on('data', (data) => {
-      if (typeof data === 'string') {
-        return JSON.parse(data)
+      if (typeof data === 'string') {       
+        const receiveMsg = JSON.parse(data)
+        console.log(receiveMsg);
+        if (receiveMsg.type == "message") {
+          const convArr = conversations.value
+          for (let index = 0; index < convArr.length; index++) {
+            const citem = convArr[index];
+            if (citem.friendId==conn.connectionId) {
+              citem.listOfMessage.push(receiveMsg)
+              break
+            }
+          }
+
+        }
       }
       return data
     })
-
+    
     conn.on('close', () => {
       delete connections.value[conn.peer]
     })
@@ -71,12 +100,26 @@ export const usePeerConnection = async() => {
     
     return new Promise((resolve, reject) => {
       const conn = peer.value!.connect(peerId)
+
+      const onErr = (err:any)=>{
+        console.log(err);
+        peer.value?.off("error",onErr)  
+        reject(err)
+
+      }
+      peer.value?.on("error",onErr)
+
       conn.on('open', () => {
+        peer.value?.off("error",onErr)  
         connections.value[peerId] = conn
         setupConnectionHandlers(conn)
         resolve(conn)
       })
-      conn.on('error', reject)
+      conn.on('error', (err)=>{
+        console.log(err);
+        peer.value?.off("error",onErr)  
+        reject()
+      })
     })
   }
 
@@ -97,6 +140,7 @@ export const usePeerConnection = async() => {
     currentPeerId,
     connections,
     error,
+    conversations,
     init,
     connect,
     send,

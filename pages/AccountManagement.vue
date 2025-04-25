@@ -98,6 +98,16 @@
                       class="w-full px-4 py-2 rounded-md border focus:outline-none focus:border-blue-500"
                       :class="isDark ? 'bg-dark-700 border-gray-700 text-gray-300' : 'bg-white border-gray-300'" />
                   </div>
+
+                  <div>
+                    <label class="block text-sm font-medium mb-1" :class="isDark ? 'text-gray-300' : 'text-gray-700'">
+                      CUUID
+                    </label>
+                    <input v-model="CUUID" type="text"
+                      class="w-full px-4 py-2 rounded-md border focus:outline-none bg-gray-100 cursor-not-allowed"
+                      :class="isDark ? 'bg-dark-800 border-gray-700 text-gray-400' : 'bg-gray-100 border-gray-300'"
+                      readonly />
+                  </div>
                   <div class="flex justify-end">
                     <button @click="saveProfile"
                       class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none">
@@ -527,6 +537,8 @@ const user = ref({
   twoFactorEnabled: true
 });
 
+const CUUID  = ref<string|null>('');
+
 let orgUser = {
   icon: '',
   username: '',
@@ -850,6 +862,7 @@ const logout = () => {
 // Fetch user data
 const fetchUserData = async () => {
   try {
+    CUUID.value =  sessionStorage.getItem ("CUUID");
     const jwt = sessionStorage.getItem('jwt');
     const paseto = sessionStorage.getItem('paseto');
 

@@ -1,6 +1,7 @@
 export default defineAppConfig({
 
     peerServer:{
+        host : "192.168.1.249", //ip
         enable: true,
         port : 9000, //port : number
         path : null
@@ -13,7 +14,7 @@ export default defineAppConfig({
     // 3 : warn, 
     // 4 : error, 
     // 5 : fatal
-    domain :"http://127.0.0.1",
+    domain :"http://192.168.1.249",
     db: {
         type:  "mongodb", // only mongodb is supported currently
         conntion: {

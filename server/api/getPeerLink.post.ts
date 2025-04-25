@@ -49,7 +49,7 @@ export default defineEventHandler(async (event) => {
         }
     }
     let userUrl = {
-        host: url.path,
+        host: url.host,
         port: url.port,
         path: url.path
     }

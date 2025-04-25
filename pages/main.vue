@@ -1520,7 +1520,6 @@ const deleteStory = async (storyId: string | number) => {
         storyUUID: storyId
       };
       console.log('Prepared deletion data:', deleteData);
-
       // 定义加密响应类型
       interface EncryptedResponse {
         encryptedMessage?: string;
