@@ -244,7 +244,7 @@ const sendMsg = ()=>{
     }
     let sent = false
     try {
-        usePeer.send(friend.value.id,JSON.stringify(inputtedTextImageMsg.value))  
+        usePeer.send(friend.value.id,(inputtedTextImageMsg.value))  
         sent = true  
     } catch (e) {
 
