@@ -99,8 +99,10 @@
 
         <!-- Posts Feed -->
         <div class="space-y-6">
-          <div v-for="post in displayedPosts" :key="post.id" class="rounded-xl shadow-sm p-6"
-            :class="isDark ? 'bg-dark-800' : 'bg-white'">
+          <div v-for="post in displayedPosts" :key="post.id"
+            class="rounded-xl shadow-sm p-6 transition duration-200 ease-in-out cursor-pointer"
+            :class="isDark ? 'bg-dark-800 hover:bg-dark-700' : 'bg-white hover:bg-gray-50'"
+            @click="navigateToPost(post.id)">
             <div class="p-4">
               <!-- Post Header -->
               <div class="flex items-center space-x-3">
@@ -138,18 +140,19 @@
               <!-- Action Buttons -->
               <div class="flex items-center justify-between mt-4 pt-4 border-t dark:border-gray-800">
                 <div class="flex space-x-6">
-                  <button @click="toggleLike(post)" class="flex items-center space-x-2"
+                  <!-- UPDATE START: Prevent click propagation on buttons -->
+                  <button @click.stop="toggleLike(post)" class="flex items-center space-x-2"
                     :class="post.isLiked ? 'text-pink-500' : 'text-gray-500 hover:text-pink-500'">
                     <Icon :name="post.isLiked ? 'bi:balloon-heart-fill' : 'bi:balloon-heart'" class="h-5 w-5" />
                     <span>{{ post.likes }}</span>
                   </button>
-                  <button @click="toggleComments(post)" class="flex items-center space-x-2"
+                  <button @click.stop="toggleComments(post)" class="flex items-center space-x-2"
                     :class="post.showComments ? 'text-blue-500' : 'text-gray-500 hover:text-blue-500'">
                     <Icon name="bi:chat-left-dots" class="w-5 h-5" />
                     <span>{{ post.commentCount }}</span>
                   </button>
                 </div>
-                <button @click="sharePost(post)" class="rounded-full text-gray-500 hover:text-green-500">
+                <button @click.stop="sharePost(post)" class="rounded-full text-gray-500 hover:text-green-500">
                   <Icon name="bi:share" class="h-5 w-5" />
                 </button>
               </div>
@@ -260,6 +263,7 @@ import Comment from '~/components/Comment.vue';
 import StoryViewer from '~/components/StoryViewer.vue';
 import CreateModal from '~/components/CreateModal.vue';
 import ShareModal from '~/components/ShareModal.vue';
+import { navigateTo } from '#app'; 
 
 import ImageBox from '~/components/ImageBox.vue';
 import Sidebar from '~/components/Sidebar.vue';
@@ -306,6 +310,26 @@ const toggleTheme = () => {
     localStorage.setItem('theme', isDark.value ? 'dark' : 'light')
   }
 }
+
+// --- ADD START: Navigation function ---
+// main.vue -> navigateToPost
+const navigateToPost = (postId: string | number) => {
+  console.log("Attempting to navigate with postId:", postId, typeof postId); // <-- 添加日誌 1
+  if (!postId) {
+    console.error("Cannot navigate: Post ID is missing or invalid *before* navigation.");
+    alert("Error: Could not determine the post to navigate to."); // 給用戶提示
+    return;
+  }
+  const idString = typeof postId === 'number' ? postId.toString() : postId;
+  console.log(`Navigating to /post/${idString}`); // <-- 添加日誌 2
+  if (!idString) { // 再次檢查轉換後的字符串
+      console.error("Cannot navigate: idString became empty after conversion.");
+      alert("Error: Invalid post identifier.");
+      return;
+  }
+  navigateTo(`/post/${idString}`);
+};
+
 
 // Fetch user data
 const fetchUserData = async () => {
@@ -1520,6 +1544,7 @@ const deleteStory = async (storyId: string | number) => {
         storyUUID: storyId
       };
       console.log('Prepared deletion data:', deleteData);
+
       // 定义加密响应类型
       interface EncryptedResponse {
         encryptedMessage?: string;
