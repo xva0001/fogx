@@ -12,11 +12,11 @@ import { GetSharedKeyHandler, IncomingReqEncryptionHandler } from "../EncrytionH
 
 
 
-export const createPrivate = async(event: H3Event)=>{
-    let shared 
+export const createPrivate = async (event: H3Event) => {
+    let shared
     let decrypted
     const body = await readBody(event)
-    
+
     try {
         decrypted = await IncomingReqEncryptionHandler(event, IpostSchemaVaildatorRequestObjPrivate);
 
@@ -28,7 +28,7 @@ export const createPrivate = async(event: H3Event)=>{
             throw createError("iv should exist for private posts")
         }
 
-        
+
 
         shared = GetSharedKeyHandler(body)
     } catch (error) {
@@ -36,7 +36,7 @@ export const createPrivate = async(event: H3Event)=>{
     }
 
     // Verify tokens
-    let jwtPayload 
+    let jwtPayload
     let pasetoPayload
     let userUUID: string
     try {
@@ -75,7 +75,7 @@ export const createPrivate = async(event: H3Event)=>{
             iv: decrypted.isPublic ? "" : decrypted.iv!,
             title: decrypted.title,
             content: decrypted.content,
-            Image: decrypted.Image?[decrypted.Image] : [], //it is string, always [0]
+            Image: decrypted.Image ? [decrypted.Image] : [], //it is string, always [0]
             tags: decrypted.tags || []
         }
 
@@ -88,7 +88,7 @@ export const createPrivate = async(event: H3Event)=>{
         // Get user info for response
         let userInfo
         try {
-            userInfo = await getUserInfo(dbConnector, userUUID)    
+            userInfo = await getUserInfo(dbConnector, userUUID)
         } catch (error) {
             console.error("Error getting user info:", error)
         }
@@ -110,8 +110,8 @@ export const createPrivate = async(event: H3Event)=>{
     } catch (error) {
         console.error("Error in post creation:", error)
         throw createError({
-            message: "Error creating post", 
-            statusCode: 500 
+            message: "Error creating post",
+            statusCode: 500
         })
     } finally {
         await dbConnector.dbConnsClose()
@@ -121,10 +121,10 @@ export const createPrivate = async(event: H3Event)=>{
 
 
 export const createPostHandler = async (event: H3Event) => {
-    let shared 
+    let shared
     let decrypted
     const body = await readBody(event)
-    
+
     try {
         decrypted = await IncomingReqEncryptionHandler(event, IpostSchemaVaildatorRequestObj);
 
@@ -153,7 +153,7 @@ export const createPostHandler = async (event: H3Event) => {
     }
 
     // Verify tokens
-    let jwtPayload 
+    let jwtPayload
     let pasetoPayload
     let userUUID: string
     try {
@@ -205,7 +205,7 @@ export const createPostHandler = async (event: H3Event) => {
         // Get user info for response
         let userInfo
         try {
-            userInfo = await getUserInfo(dbConnector, userUUID)    
+            userInfo = await getUserInfo(dbConnector, userUUID)
         } catch (error) {
             console.error("Error getting user info:", error)
         }
@@ -227,8 +227,8 @@ export const createPostHandler = async (event: H3Event) => {
     } catch (error) {
         console.error("Error in post creation:", error)
         throw createError({
-            message: "Error creating post", 
-            statusCode: 500 
+            message: "Error creating post",
+            statusCode: 500
         })
     } finally {
         await dbConnector.dbConnsClose()

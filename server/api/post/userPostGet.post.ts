@@ -115,11 +115,12 @@ const UserPostGetSchema = z.object({
               let posts: IPost[] = []; // 存儲修正後的 Post
               for (const group of postGroups) {
                   let problemArr: number[] = [];
+
                   const validPostsInGroup = group.filter((p, index) => {
                       if (p === undefined) problemArr.push(index);
-                      return p !== undefined;
-                  });
-                   if (validPostsInGroup.length >= getThreshold()) {
+                      return true;//always true
+                  });//should be use map
+                   if (problemArr.length < getThreshold()) {
                       posts.push(await getCorrectPost(validPostsInGroup, problemArr));
                    } else {
                       console.warn(`Post group for UUID ${group[0]?.UUID} did not meet threshold after filtering invalid entries.`);
@@ -135,6 +136,7 @@ const UserPostGetSchema = z.object({
 
               for (let index = 0; index < posts.length; index++) {
                   const item = posts[index];
+                  /// write by Chris 
                   try {
                       // 獲取發布者信息
                       const postUser = await getUserInfo(dbConnector, item.UserUUID);
