@@ -24,7 +24,7 @@ export function useNavigation() {
   const navigationItems = computed<MenuItem[]>(() => [
     { key: 'home', icon: Home, label: 'Home', route: '/' },
     { key: 'explore', icon: Search, label: 'Explore', route: '/explore' },
-    { key: 'messages', icon: MessageCircle, label: 'Messages', route: '/messages' },
+    { key: 'messages', icon: MessageCircle, label: 'Messages', route: '/PrivateChat' },
     { key: 'notifications', icon: Bell, label: 'Notifications', route: '/notifications' },
     { key: 'bookmarks', icon: Bookmark, label: 'Bookmarks', route: '/bookmarks' },
     { key: 'private', icon: Search, label: 'Private Content', route: '/Private' } // 添加 Private Content
@@ -33,7 +33,8 @@ export function useNavigation() {
   const bottomItems = computed<MenuItem[]>(() => [
     { key: 'settings', icon: Settings, label: 'Settings', route: '/settings' },
     // 注意：Profile 的路由通常是 /profile，如果你的頁面是 AccountManagement.vue，確保路由匹配
-    { key: 'profile', icon: User, label: 'Profile', route: '/AccountManagement' }, // 或者 '/profile'
+    {key: 'Profile',icon:User,label:"Profile",route:"/user"},
+    { key: 'Account Management', icon: User, label: 'Profile', route: '/AccountManagement' }, // 或者 '/profile'
     { key: 'logout', icon: LogOut, label: 'Logout' } // Logout 通常沒有 route，由 handleNavigate 處理
   ]);
 

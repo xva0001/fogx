@@ -87,7 +87,7 @@
         <!-- Create Post Section -->
         <div class="rounded-xl shadow-sm p-6" :class="isDark ? 'bg-dark-800' : 'bg-white'"> <!-- 增加 padding -->
           <div class="flex items-center space-x-4">
-            <div class="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center  overflow-hidden">
+            <div class="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center  overflow-hidden" @click="goUserProfile">
               <img :src="user.icon" alt="" class="w-full h-full object-cover">
             </div>
             <input v-model="newPostContent"
@@ -301,6 +301,14 @@ const {
 
 const goAccoutManagement = () => {
   navigateTo({ path: "/AccountManagement" })
+}
+
+const goUserProfile =()=>{
+  if (!sessionStorage.getItem("CUUID")) {
+    navigateTo("/login")
+    return
+  }
+  navigateTo({ path: "/user/"+sessionStorage.getItem("CUUID") })
 }
 
 const toggleTheme = () => {
