@@ -43,7 +43,7 @@ export const usePeerConnection = async() => {
         instance.on('open', (id) => {
           currentPeerId.value = id
           console.log(id);
-          peer.value = instance
+          peer.value = instance //give value for peer *************************************************
           resolve(instance)
         })
 
@@ -78,15 +78,34 @@ export const usePeerConnection = async() => {
   const setupConnectionHandlers = (conn: DataConnection) => {
     conn.on('data', (data) => {
       if (typeof data === 'string') {       
-        const receiveMsg = JSON.parse(data)
+        const receiveMsg  = JSON.parse(data)
         console.log(receiveMsg);
+        console.log(receiveMsg.type == "message");
+        
         if (receiveMsg.type == "message") {
-          const convArr = conversations.value
-          for (let index = 0; index < convArr.length; index++) {
-            const citem = convArr[index];
-            if (citem.friendId==conn.connectionId) {
-              citem.listOfMessage.push(receiveMsg)
-              break
+          // const convArr = conversations.value
+          // for (let index = 0; index < convArr.length; index++) {
+          //   const conversationItem = convArr[index];
+          //   // if (conversationItem.friendId==conn) {
+          //   //   conversationItem.listOfMessage.push(receiveMsg)
+          //   //   conversations.value[index] = conversationItem
+          //   //   break
+          //   // }
+          // }
+          const conv :Conversations = {
+            friendId: receiveMsg.sender as string, // Ensure friendId is typed
+            listOfMessage : [receiveMsg]
+          }
+
+          if (conversations.value.length==0) {
+            conversations.value.push(conv)
+          }else{
+            for (let index = 0; index < conversations.value.length; index++) {
+              const element = conversations.value[index];
+              if (element.friendId == receiveMsg.sender) {
+                element.listOfMessage.push(receiveMsg)
+              }
+              
             }
           }
 
