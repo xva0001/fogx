@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen relative" :class="isDark ? 'bg-dark-900' : 'bg-gray-50'">
+  <div class="min-h-screen relative bg-base-100">
     <!-- Sidebar -->
     <Sidebar v-model:expanded="sidebarExpanded" :items="navigationItems" :bottom-items="bottomItems"
       :active-key="currentRouteKey" @item-click="handleNavigate" />
@@ -10,7 +10,7 @@
     }">
       <div class="max-w-2xl mx-auto py-8 px-4 space-y-6">
         <!-- Header Actions (Moved from Top Navigation Bar) -->
-        <div class="flex items-center justify-between mb-8 p-4 rounded-xl" :class="isDark ? 'bg-dark-800' : 'bg-white'">
+        <div class="flex items-center justify-between mb-8 p-4 rounded-xl bg-base-200 shadow-sm">
           <!-- Search Area -->
           <div class="search-container group flex-1 max-w-xl">
             <div class="relative flex items-center">
@@ -53,8 +53,8 @@
           <div class="overflow-x-auto">
             <div class="flex space-x-4 pb-4">
               <!-- Add Story Card -->
-              <div class="flex-shrink-0 w-32 h-48 rounded-xl overflow-hidden relative shadow-sm cursor-pointer group"
-                :class="isDark ? 'bg-dark-lighter' : 'bg-white'" @click="openCreateStory">
+              <div class="flex-shrink-0 w-32 h-48 rounded-xl overflow-hidden relative shadow-sm cursor-pointer group bg-base-100"
+                   @click="openCreateStory">
                 <div class="absolute inset-0 bg-gradient-to-b from-transparent to-black/50"></div>
                 <div
                   class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center absolute top-4 left-1/2 transform -translate-x-1/2">
@@ -85,9 +85,9 @@
         </div>
 
         <!-- Create Post Section -->
-        <div class="rounded-xl shadow-sm p-6" :class="isDark ? 'bg-dark-800' : 'bg-white'"> <!-- 增加 padding -->
+        <div class="rounded-xl shadow-sm p-6 bg-base-100">
           <div class="flex items-center space-x-4">
-            <div class="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center  overflow-hidden" @click="goUserProfile">
+            <div class="w-12 h-12 bg-primary rounded-full flex items-center justify-center overflow-hidden cursor-pointer" @click="goUserProfile">
               <img :src="user.icon" alt="" class="w-full h-full object-cover">
             </div>
             <input v-model="newPostContent"
@@ -100,8 +100,7 @@
         <!-- Posts Feed -->
         <div class="space-y-6">
           <div v-for="post in displayedPosts" :key="post.id"
-            class="rounded-xl shadow-sm p-6 transition duration-200 ease-in-out cursor-pointer"
-            :class="isDark ? 'bg-dark-800 hover:bg-dark-700' : 'bg-white hover:bg-gray-50'"
+            class="rounded-xl shadow-sm p-6 transition duration-200 ease-in-out cursor-pointer bg-base-200 hover:bg-base-300"
             @click="navigateToPost(post.id)">
             <div class="p-4">
               <!-- Post Header -->
