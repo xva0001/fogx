@@ -9,6 +9,8 @@ import {
   MessageCircle,
   Bookmark,
   Settings,
+  Lock,
+  UserCog,
   User,
   LogOut,
   // 如果其他頁面也用了不同的圖標，可以在這裡添加
@@ -22,19 +24,19 @@ export function useNavigation() {
 
   // --- Navigation Items ---
   const navigationItems = computed<MenuItem[]>(() => [
-    { key: 'home', icon: Home, label: 'Home', route: '/' },
-    { key: 'explore', icon: Search, label: 'Explore', route: '/explore' },
+    { key: 'home', icon: Home, label: 'Home', route: '/main' },
+    { key: 'explore', icon: Search, label: 'Search', route: '/explore' },
     { key: 'messages', icon: MessageCircle, label: 'Messages', route: '/PrivateChat' },
     { key: 'notifications', icon: Bell, label: 'Notifications', route: '/notifications' },
     { key: 'bookmarks', icon: Bookmark, label: 'Bookmarks', route: '/bookmarks' },
-    { key: 'private', icon: Search, label: 'Private Content', route: '/Private' } // 添加 Private Content
+    { key: 'private', icon: Lock, label: 'Private Content', route: '/Private' } // 添加 Private Content
   ]);
 
   const bottomItems = computed<MenuItem[]>(() => [
     { key: 'settings', icon: Settings, label: 'Settings', route: '/settings' },
     // 注意：Profile 的路由通常是 /profile，如果你的頁面是 AccountManagement.vue，確保路由匹配
-    {key: 'Profile',icon:User,label:"Profile",route:"/user"},
-    { key: 'Account Management', icon: User, label: 'Profile', route: '/AccountManagement' }, // 或者 '/profile'
+    {key: 'Profile',icon:User,label:"Profile",route:"/user/userProfile"},
+    { key: 'Account Management', icon: UserCog, label: 'Account Management', route: '/AccountManagement' }, // 或者 '/profile'
     { key: 'logout', icon: LogOut, label: 'Logout' } // Logout 通常沒有 route，由 handleNavigate 處理
   ]);
 
