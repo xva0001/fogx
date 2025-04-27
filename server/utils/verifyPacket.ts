@@ -6,6 +6,10 @@ import { IStory } from "../db_data_schema/StorySchema";
 import { IUser } from "../db_data_schema/UserSchema";
 import { IPost } from "../db_data_schema/PostSchema";
 import consola from "consola";
+import { sha3_256_userKeyHash } from "./HashedUserKey";
+import { IUserKey } from "../db_data_schema/UserKeyShema";
+import { sha3_256_messageHash } from "./HashedMessage";
+import { IMessage } from "../db_data_schema/MessageShema";
 
 class verifyPacket{
 
@@ -110,6 +114,67 @@ class verifyPacket{
     }
 
    }
+
+
+   static verifyUserKey(userKey: IUserKey, publicKey: string = process.env.EDDSA_SIGN_PUBLIC_KEY!): boolean {
+        if (!publicKey) {
+            console.error("Public key for user key verification is missing");
+            return false;
+        }
+        try {
+            const calculatedHash = sha3_256_userKeyHash(userKey);
+            if (calculatedHash !== userKey.objHash) {
+                console.warn(`User key hash mismatch for UUID ${userKey.UUID}. Calculated: ${calculatedHash}, Stored: ${userKey.objHash}`);
+                return false;
+            }
+
+            const isSignValid = SignMessage.verify(
+                publicKey,
+                userKey.objSign,
+                String(userKey.objHash)
+            );
+
+            if (!isSignValid) {
+                console.warn(`User key signature verification failed for UUID ${userKey.UUID}`);
+            }
+
+            return isSignValid;
+        } catch (error) {
+            console.error(`Error during user key verification for UUID ${userKey.UUID}:`, error);
+            return false;
+        }
+    }
+
+    static verifyMessage(message: IMessage, publicKey: string = process.env.EDDSA_SIGN_PUBLIC_KEY!): boolean {
+        if (!publicKey) {
+            console.error("Public key for message verification is missing");
+            return false;
+        }
+        try {
+            const calculatedHash = sha3_256_messageHash(message);
+            if (calculatedHash !== message.objHash) {
+                console.warn(`Message hash mismatch for sender ${message.sender_UUID}. Calculated: ${calculatedHash}, Stored: ${message.objHash}`);
+                return false;
+            }
+
+            const isSignValid = SignMessage.verify(
+                publicKey,
+                message.objSign,
+                String(message.objHash)
+            );
+
+            if (!isSignValid) {
+                console.warn(`Message signature verification failed for sender ${message.sender_UUID}`);
+            }
+
+            return isSignValid;
+        } catch (error) {
+            console.error(`Error during message verification for sender ${message.sender_UUID}:`, error);
+            return false;
+        }
+    }
+
+
 
 }
 

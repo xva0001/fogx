@@ -25,6 +25,7 @@ export const findPostByUserUUID = async (dbConnector: MongoDBConnector, userUUID
 
             for (const post of dbContent) {
                 const cleanedPost = cleanMongoObject(post) as IPost;
+                
                 // Verify post (skip if verification fails)
                 
                 const uuid = cleanedPost.UUID;
