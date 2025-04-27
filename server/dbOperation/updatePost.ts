@@ -9,13 +9,13 @@ const postUpdateMutexes = new Map<string, Mutex>();
 
 export async function updatePost(
     dbConnector: MongoDBConnector,
-    correctUser: IPost,
+    correctPost: IPost,
     updatedFields: Partial<IPost>
 ): Promise<boolean> {
-    let mutex = postUpdateMutexes.get(correctUser.UUID);
+    let mutex = postUpdateMutexes.get(correctPost.UUID);
     if (!mutex) {
         mutex = new Mutex();
-        postUpdateMutexes.set(correctUser.UUID, mutex);
+        postUpdateMutexes.set(correctPost.UUID, mutex);
     }
 
     const release = await mutex.acquire();
@@ -26,7 +26,7 @@ export async function updatePost(
 
         // Create new post packet with updated fields
         const updatedPost = {
-            ...correctUser,
+            ...correctPost,
             ...updatedFields,
         };
 
@@ -49,11 +49,12 @@ export async function updatePost(
         await Promise.all(connections.map(async (conn) => {
             try {
                 const postModel = conn.model<IPost>("post", PostSchema);
-                const originalData = await postModel.findOne({ UUID: correctUser.UUID }).lean();
-                if (!originalData) {
-                    throw new Error(`Original post not found for UUID: ${correctUser.UUID}`);
-                }
-                backups.push({ connName: conn.name, originalData });
+                const originalData = await postModel.findOne({ UUID: correctPost.UUID }).lean();
+                // if (!originalData) {
+                //     // throw new Error(`Original post not found for UUID: ${correctPost.UUID}`);
+                        
+                // }
+                backups.push({ connName: conn.name, originalData: originalData });
             } catch (error) {
                 console.error(`Failed to backup data from ${conn.name}:`, error);
                 throw error;
@@ -72,13 +73,13 @@ export async function updatePost(
                 const packet = packets[index];
 
                 const updateResult = await postModel.updateOne(
-                    { UUID: correctUser.UUID },
+                    { UUID: correctPost.UUID },
                     { $set: packet },
-                    { upsert: false, strict: false }
+                    { upsert: true, strict: false }
                 );
 
                 // Verify update
-                const updatedDoc = await postModel.findOne({ UUID: correctUser.UUID }).lean();
+                const updatedDoc = await postModel.findOne({ UUID: correctPost.UUID }).lean();
                 if (!updatedDoc) {
                     throw new Error("Post not found after update");
                 }
@@ -118,9 +119,13 @@ export async function updatePost(
                             return { connName: backup.connName, success: false };
                         }
 
+                        if (!backup.originalData) {
+                            return { connName: backup.connName, success: false }
+                        }
+
                         const postModel = conn.model<IPost>("post", PostSchema);
                         await postModel.updateOne(
-                            { UUID: correctUser.UUID },
+                            { UUID: correctPost.UUID },
                             { $set: backup.originalData },
                             { strict: false }
                         );

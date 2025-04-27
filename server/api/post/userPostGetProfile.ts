@@ -2,6 +2,7 @@ import consola from "consola";
 import { getCorrectPost } from "~/server/DataFixer/PostFixer";
 import { IPost } from "~/server/db_data_schema/PostSchema";
 import { findPostByUserUUID } from "~/server/dbOperation/findPostByUserUUID";
+import { updatePost } from "~/server/dbOperation/updatePost";
 import { GetSharedKeyHandler, IncomingReqEncryptionHandler } from "~/server/eventHandle/EncrytionHandler/IncomingEncryptionHandler";
 import { generalTokenSchema } from "~/server/request_sheme/general/generalTokenSchema";
 import { verifyJWT } from "~/server/token_validator/jwt";
@@ -72,13 +73,13 @@ export default defineEventHandler(async (event) => {
 
 
     try {
-        const postsData = (await findPostByUserUUID(dbConnector, userUUID)).postGroups
+        const postsData = (await findPostByUserUUID(dbConnector, userUUID))
         
-        logger.info(postsData.length)
+        logger.info(postsData.postGroups.length)
 
         let posts: IPost[] = []; // 存儲修正後的 Post
 
-        for (const post of postsData) {
+        for (const post of postsData.postGroups) {
 
             let problemArr: number[] = [];
 
@@ -87,8 +88,20 @@ export default defineEventHandler(async (event) => {
                     problemArr.push(i)
                 }
             })
+
             if (problemArr.length < getThreshold()) {
-                posts.push(await getCorrectPost(post, problemArr))
+                
+                let corrPost = await getCorrectPost(post, problemArr)
+
+                posts.push(corrPost)
+
+                if (postsData.problemPostIDArr.includes(corrPost.UUID)) {
+                  const updateResult = await updatePost(dbConnector,corrPost,{})
+                  if (updateResult == false) {
+                    logger.info("fix post failed")
+                  }
+                }
+
             } else {
                 logger.info(`Post Group for UUID ${post[0]?.UUID} did not meet threshold after filtering invalid entries.`)
             }

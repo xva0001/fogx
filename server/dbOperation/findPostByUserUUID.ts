@@ -45,9 +45,14 @@ export const findPostByUserUUID = async (dbConnector: MongoDBConnector, userUUID
 
     // Filter out groups that don't meet threshold
     const mergedResults: (IPost|undefined)[][] = [];
+    const problemPostID = []
     for (const group of allPostsMap.values()) {
         if (group.length >= threshold) {
             mergedResults.push(group);
+        }
+
+        if (group.length >= threshold && group.length < getSharePartNum()) {
+            problemPostID.push(group?.[0]?.UUID)
         }
     }
 
@@ -55,6 +60,7 @@ export const findPostByUserUUID = async (dbConnector: MongoDBConnector, userUUID
     
 
     return {
-        postGroups: mergedResults
+        postGroups: mergedResults,
+        problemPostIDArr:problemPostID
     };
 }
