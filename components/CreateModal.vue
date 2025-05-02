@@ -91,7 +91,7 @@ const handleFileChange = (event: Event) => {
 };
 
 const isValid = computed(() => {
-  // if (!selectedFile.value) return false;
+   if (!selectedFile.value && props.type == "story") return false;
   if (props.type === 'post') {
     return title.value.trim() !== '' && content.value.trim() !== '';
   }
