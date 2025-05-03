@@ -30,7 +30,7 @@ export async function getCorrectUser(
     const result: Partial<IUser> = {};
     const keyShares: string[] = [];
     const allKeys = Object.keys(validUsersWithIndex[0].user) as (keyof IUser)[];
-    console.log(allKeys);
+    // console.log(allKeys);
 
 
     // 在字段循环外单独处理密钥分片

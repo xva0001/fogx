@@ -195,9 +195,9 @@ export default defineEventHandler(async (event: H3Event): Promise<EncryptedRes |
             // ? (corr.roles as string).split(",") as Role[]
             // : corr.roles as Role[]; 
             //get signedPacket
-            console.log(userArr);
+            // console.log(userArr);
             
-            console.log(corr);
+            // console.log(corr);
 
             try {
                 let  resDB = await updateUser(dbConnector,corr,reconstructedKey)

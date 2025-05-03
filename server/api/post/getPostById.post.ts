@@ -58,9 +58,9 @@ export default defineEventHandler(async (event: H3Event): Promise<EncryptedRes |
         const decrypt = await RequestEncryption.decryptMessage(req.data.encryptedMessage, shared, req.data.iv);
         const basicPayload = JSON.parse(decrypt); 
 
-        console.log("--- Decrypted Payload Received by API ---");
-        console.log(basicPayload);                           
-        console.log("--- End Decrypted Payload ---"); 
+        // console.log("--- Decrypted Payload Received by API ---");
+        // console.log(basicPayload);                           
+        // console.log("--- End Decrypted Payload ---"); 
 
         const parsedDecrypt = GetPostByIdPayloadSchema.safeParse(JSON.parse(decrypt));
         if (!parsedDecrypt.success) {
